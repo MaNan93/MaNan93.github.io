@@ -13,6 +13,19 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}.wr
 @media(max-width:680px){.hero{padding-top:42px}.quick{grid-template-columns:1fr}.quick div:nth-child(odd){border-bottom:0}.card{padding:18px}}
 
 .sitebar,.site-header,.footer{display:none!important}.hero{padding-top:1rem}.hextra-custom-content{max-width:none}
+.hextra-custom-content pre{background:var(--code)!important;color:var(--codeText)!important}
+.hextra-custom-content pre code{color:inherit!important}
+@media(max-width:680px){
+  .hextra-custom-content .hero{padding-top:.5rem}
+  .hextra-custom-content .hero p{font-size:16px;line-height:1.65}
+  .hextra-custom-content h2{font-size:24px;line-height:1.3;margin-top:32px}
+  .hextra-custom-content h3{font-size:20px;line-height:1.4;margin-top:22px}
+  .hextra-custom-content .card{padding:14px;border-radius:12px}
+  .hextra-custom-content .formula,.hextra-custom-content pre{font-size:13px;line-height:1.6;padding:12px}
+  .hextra-custom-content table{font-size:13px}
+  .hextra-custom-content th,.hextra-custom-content td{padding:8px}
+  .hextra-custom-content canvas{height:260px}
+}
 html.dark .hextra-custom-content{--card:#111827;--text:#e5edf7;--muted:#a7b2c2;--line:#2b3648;--accent:#67d4f4;--accent2:#38bde6;--code:#070b13;--codeText:#e2e8f0}
 </style>
 <div class="hextra-custom-content">
