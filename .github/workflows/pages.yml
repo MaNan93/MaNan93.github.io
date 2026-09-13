@@ -59,7 +59,7 @@ jobs:
         run: |
           bundle exec htmlproofer ../_site \
             --disable-external \
-            --ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/"
+            --ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/,/^http:\/\/c\.biancheng\.net/"
         working-directory: chirpy-src
 
       - name: Upload site artifact
