@@ -1,15 +1,22 @@
 # MaNan Notes
 
-Personal engineering blog hosted by GitHub Pages.
+Personal engineering notes built with [Hugo](https://gohugo.io/) and [Hextra](https://imfing.github.io/hextra/), deployed by GitHub Actions.
 
-## Content structure
+## Structure
 
-- `/` — home and latest content
-- `/notes/` — curated topic notes
-- `/archives/` — chronological article archive
-- `/tools/` — interactive tools and downloadable scripts
-- `/about/` — profile
-- `/css/custom.css` — shared Paper-style visual system
-- `/js/site.js` — shared theme behavior
+- `content/docs/` — PCIe and digital IC topic notes
+- `content/blog/` — standalone chronological posts
+- `content/tools/` — tool index
+- `content/about/` — profile
+- `static/` — downloadable scripts and static images
+- `themes/hextra/` — pinned Hextra Git submodule
+- `.github/workflows/pages.yml` — build and deployment workflow
 
-Existing article URLs are intentionally preserved. New topic notes should use a stable, date-independent slug; dated blog posts may continue using the existing archive convention.
+## Local preview
+
+```bash
+git submodule update --init --recursive
+hugo server
+```
+
+Existing public URLs for the IEEE 754 article, PCIe FFE topic, downloads, and about page are preserved through explicit Hugo front matter URLs.
