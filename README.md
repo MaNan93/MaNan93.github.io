@@ -1,22 +1,19 @@
 # MaNan Notes
 
-Personal engineering notes built with [Hugo](https://gohugo.io/) and [Hextra](https://imfing.github.io/hextra/), deployed by GitHub Actions.
+个人技术博客，使用 Jekyll 与 Chirpy 构建。
 
-## Structure
+## 目录
 
-- `content/docs/` — PCIe and digital IC topic notes
-- `content/blog/` — standalone chronological posts
-- `content/tools/` — tool index
-- `content/about/` — profile
-- `static/` — downloadable scripts and static images
-- `themes/hextra/` — pinned Hextra Git submodule
-- `.github/workflows/pages.yml` — build and deployment workflow
+- `chirpy-src/`：Jekyll/Chirpy 源文件、文章和配置
+- `.github/workflows/pages.yml`：GitHub Pages 构建与部署
+- 仓库根目录的静态文件：当前 GitHub Pages 分支发布兼容输出
 
-## Local preview
+## 本地预览
 
 ```bash
-git submodule update --init --recursive
-hugo server
+cd chirpy-src
+bundle install
+bundle exec jekyll serve
 ```
 
-Existing public URLs for the IEEE 754 article, PCIe FFE topic, downloads, and about page are preserved through explicit Hugo front matter URLs.
+访问 `http://127.0.0.1:4000/`。

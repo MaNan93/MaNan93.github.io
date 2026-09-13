@@ -3,3 +3,7 @@
 /public-verify/
 /resources/_gen/
 .hugo_build.lock
+/_site/
+/chirpy-src/.jekyll-cache/
+/chirpy-src/.sass-cache/
+/chirpy-src/vendor/

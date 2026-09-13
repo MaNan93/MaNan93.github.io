@@ -1,10 +1,15 @@
-name: Deploy Hextra site to GitHub Pages
-
+name: "Build and Deploy"
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - .gitignore
+      - README.md
+      - LICENSE
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 permissions:
@@ -12,41 +17,59 @@ permissions:
   pages: write
   id-token: write
 
+# Allow one concurrent deployment
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          submodules: recursive
-      - uses: actions/setup-go@v5
+          # submodules: true
+          # If using the 'assets' git submodule from Chirpy Starter, uncomment above
+          # (See: https://github.com/cotes2020/chirpy-starter/tree/main/assets)
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          go-version: '1.23'
-      - name: Install Hugo
+          ruby-version: 3.4
+          bundler-cache: true
+          working-directory: chirpy-src
+
+      - name: Build site
+        run: bundle exec jekyll b -d "../_site${{ steps.pages.outputs.base_path }}"
+        working-directory: chirpy-src
         env:
-          HUGO_VERSION: 0.161.0
+          JEKYLL_ENV: "production"
+
+      - name: Test site
         run: |
-          wget -q -O "$RUNNER_TEMP/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
-          sudo dpkg -i "$RUNNER_TEMP/hugo.deb"
-      - uses: actions/configure-pages@v5
-      - name: Build
-        run: hugo --gc
-      - uses: actions/upload-pages-artifact@v3
+          bundle exec htmlproofer _site \
+            \-\-disable-external \
+            \-\-ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/"
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: public
+          path: "_site${{ steps.pages.outputs.base_path }}"
+
   deploy:
-    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
