@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PCIe Tx FFE & Preset Study Notes</title>
+<meta name="description" content="PCIe Tx FFE、Pre-Shoot、De-emphasis、Gen3~5 P Preset 与 Gen6 Q Preset 学习笔记和交互式可视化工具。">
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--text:#17202a;--muted:#667085;--line:#d9e2ec;--accent:#0f7ea8;--accent2:#0fa0ce;--code:#0f172a;--codeText:#e2e8f0;--good:#087f5b}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}.wrap{max-width:1100px;margin:auto;padding:28px 20px 64px}.hero{padding:34px 0 14px}.hero h1{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:0 0 12px}.hero p{font-size:18px;color:var(--muted);max-width:850px}.badges{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.badge{background:#e6f7fc;border:1px solid #b9e5f2;border-radius:999px;padding:4px 10px;font-size:13px}.nav{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0 30px}.btn{display:inline-block;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:600}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}.card{grid-column:span 12;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 8px 22px rgba(15,23,42,.05)}.half{grid-column:span 6}.third{grid-column:span 4}@media(max-width:800px){.half,.third{grid-column:span 12}}h2{margin-top:40px;font-size:28px}h3{margin-top:26px}.formula,pre{background:var(--code);color:var(--codeText);border-radius:10px;padding:14px 16px;overflow:auto;font-family:Consolas,monospace}.formula{font-size:15px}.quick{display:grid;grid-template-columns:180px 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}.quick div{padding:10px 12px;border-bottom:1px solid var(--line)}.quick div:nth-child(odd){font-weight:700;background:#f8fbfd}.quick div:nth-last-child(-n+2){border-bottom:0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid var(--line);padding:9px 10px;text-align:left}th{background:#eaf6fa}.note{border-left:5px solid var(--accent2);background:#effafe;padding:12px 16px;border-radius:6px;margin:18px 0}.warn{border-left-color:#f59f00;background:#fff9db}.tool{display:grid;grid-template-columns:260px 1fr;gap:18px}@media(max-width:900px){.tool{grid-template-columns:1fr}}label{display:block;font-weight:700;margin:10px 0 5px}select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.stat{background:#f7fafc;border:1px solid var(--line);border-radius:8px;padding:9px}.stat b{display:block;font-size:12px;color:var(--muted)}canvas{width:100%;height:330px;border:1px solid var(--line);border-radius:10px;background:#fff}.small{font-size:13px;color:var(--muted)}.footer{color:var(--muted);margin-top:48px;border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>PCIe Tx FFE & Preset Study Notes</h1>
+  <p>面向数字 RTL / Controller / PIPE 设计的 FFE 学习笔记：从 ISI、Cursor、Pre-Shoot、De-emphasis，到 Gen3~Gen5 P Preset 与 Gen6 Q Preset，并附可实时切换 preset 的浏览器可视化工具。</p>
+  <div class="badges"><span class="badge">PCIe Gen3~Gen6</span><span class="badge">Tx FFE</span><span class="badge">Preset</span><span class="badge">Digital RTL View</span></div>
+  <div class="nav"><a class="btn primary" href="#visualizer">打开实时可视化</a><a class="btn" href="./pcie_tx_preset.py">下载 CLI Python</a><a class="btn" href="./pcie_tx_preset_gui.py">下载 PyQt5 GUI</a><a class="btn" href="https://github.com/MaNan93/MaNan93.github.io/tree/main/pcie-tx-ffe">查看源码</a></div>
+</header>
+<section class="card">
+<h2 style="margin-top:0">一页速记</h2>
+<div class="quick">
+<div>FFE</div><div>Feed-Forward Equalizer，本质是 FIR；使用原始 symbol x[] 的相邻样本加权产生 Tx 输出 y[]。</div>
+<div>x[] / y[]</div><div>x[] 是未经 FFE 的原始 symbol；y[] 是 FFE 后输出。不要把 y[n-1] 递归代回。</div>
+<div>C-2 / C-1 / C0 / C+1</div><div>2nd pre-cursor / 1st pre-cursor / main cursor / post-cursor。</div>
+<div>Pre-Shoot / De-emphasis</div><div>是 Tx 波形/电压 ratio 的表现；与 pre/post cursor 强相关，但不等同于 coefficient 本身。</div>
+<div>P4 / Q0</div><div>分别是 Gen3~5 P-family 与 Gen6 Q-family 的 No-EQ / flat reference。</div>
+</div>
+</section>
+<h2>1. FFE 的核心模型</h2>
+<div class="card"><p>本次学习中最关键的认识是：公式中的 <b>x[] 是未经 FFE 调制的原始 symbol</b>。FFE 是 feed-forward/FIR，不是把已经发送过的 y[] 再反馈回来。</p><div class="formula">y[n] = C-2·x[n+2] + C-1·x[n+1] + C0·x[n] + C+1·x[n-1]</div><p>这里采用与 PCIe cursor 位置一致的时间索引：C-2/C-1 位于 main 之前，C+1 位于 main 之后。连续相同 symbol 不会无限向 0 衰减；有限 tap 的影响结束后会进入稳定电平。</p></div>
+<h2>2. Cursor 与波形效果</h2>
+<div class="grid"><div class="card half"><h3 style="margin-top:0">Cursor 位置</h3><pre>time →
+ C-2       C-1       C0       C+1
+  │         │         │         │
+2nd Pre   1st Pre    Main      Post</pre></div><div class="card half"><h3 style="margin-top:0">最重要的区分</h3><p><b>Pre-cursor / post-cursor</b> 是 FFE tap 位置。</p><p><b>Pre-Shoot / De-emphasis</b> 是最终波形与 PCIe 定义的 equalization ratio。</p></div></div>
+<div class="card" style="margin-top:18px"><h3 style="margin-top:0">PCIe Figure 8-6 对应的电压定义</h3><pre>Va  = (+C-2 + C-1 + C0 - C+1)
+Vb  = (+C-2 + C-1 + C0 + C+1)
+Vc1 = (+C-2 - C-1 + C0 + C+1)
+Vc2 = (-C-2 + C-1 + C0 + C+1)
+Vd  = (-C-2 - C-1 + C0 - C+1)
+
+De-emphasis = 20 log10(Vb / Va)
+Pre-Shoot 1 = 20 log10(Vc1 / Vb)
+Pre-Shoot 2 = 20 log10(Vc2 / Vb)
+Boost       = 20 log10(Vd / Vb)</pre></div>
+<h2>3. Gen3~Gen5：P Preset</h2>
+<div class="card"><p>固定 P preset 主要使用 C-1、C0、C+1，C-2=0，因此可以从 3-tap FFE 的角度理解。</p><table><thead><tr><th>Preset</th><th>C-1</th><th>C+1</th><th>Pre-Shoot 1</th><th>De-emphasis</th><th>分类</th></tr></thead><tbody>
+<tr><td>P0</td><td>0</td><td>-0.250</td><td>0 dB</td><td>-6.0 dB</td><td>Pure De-emphasis</td></tr><tr><td>P1</td><td>0</td><td>-0.167</td><td>0 dB</td><td>-3.5 dB</td><td>Pure De-emphasis</td></tr><tr><td>P2</td><td>0</td><td>-0.200</td><td>0 dB</td><td>-4.4 dB</td><td>Pure De-emphasis</td></tr><tr><td>P3</td><td>0</td><td>-0.125</td><td>0 dB</td><td>-2.5 dB</td><td>Pure De-emphasis</td></tr><tr><td>P4</td><td>0</td><td>0</td><td>0 dB</td><td>0 dB</td><td><b>No EQ</b></td></tr><tr><td>P5</td><td>-0.100</td><td>0</td><td>+1.9 dB</td><td>0 dB</td><td>Pure Pre-Shoot</td></tr><tr><td>P6</td><td>-0.125</td><td>0</td><td>+2.5 dB</td><td>0 dB</td><td>Pure Pre-Shoot</td></tr><tr><td>P7</td><td>-0.100</td><td>-0.200</td><td>+3.5 dB</td><td>-6.0 dB</td><td>Pre + Post</td></tr><tr><td>P8</td><td>-0.125</td><td>-0.125</td><td>+3.5 dB</td><td>-3.5 dB</td><td>Pre + Post</td></tr><tr><td>P9</td><td>-0.167</td><td>0</td><td>+3.5 dB</td><td>0 dB</td><td>Pure Pre-Shoot</td></tr></tbody></table><div class="note"><b>快速分类：</b> P0~P3 = pure de-emphasis；P4 = No EQ；P5/P6/P9 = pure pre-shoot；P7/P8 = pre-shoot + de-emphasis。</div></div>
+<h2>4. P4 失败意味着什么</h2>
+<div class="card"><p>P4 没有 Tx FFE。如果 Gen3 在 P4 下失败，最直接只能说明：<b>8 GT/s 下 No-EQ 的 channel margin 不足</b>。</p><pre>P4 fail
+  ├─ P0~P3 pass     → post-cursor compensation 有效
+  ├─ P5/P6/P9 pass  → pre-cursor compensation 有效
+  ├─ P7/P8 pass     → pre + post 组合有效
+  └─ all fail       → 继续检查 RX EQ / channel / jitter / termination / SI ...</pre><p>典型 PCIe channel 中 post-cursor ISI 常很重要，因此工程上经常优先尝试带 post-cursor 的 preset；但这不是协议规定。</p></div>
+<h2>5. 3-tap → 4-tap</h2>
+<div class="card"><pre>3-tap:          C-1    C0    C+1
+4-tap:     C-2  C-1    C0    C+1</pre><p>对数字设计者来说，最简单的理解就是：<b>多了一个 2nd pre-cursor 自由度</b>。本质还是 FIR。4-tap 与 PAM4 是两个不同维度，不能简单写成 “PAM4 ⇒ 4-tap”。</p></div>
+<h2>6. Gen6：Q Preset Family</h2>
+<div class="card"><p>Q* 是一套重新定义的 preset family，不能把 Qn 当成 Pn 的自然延续。功能上，<b>P4 与 Q0 都是 No-EQ reference</b>。</p><table><thead><tr><th>Preset</th><th>C-2</th><th>C-1</th><th>C+1</th><th>主要特征</th></tr></thead><tbody>
+<tr><td>Q0</td><td>0</td><td>0</td><td>0</td><td>No EQ</td></tr><tr><td>Q1</td><td>0</td><td>-0.083</td><td>0</td><td>Pre-Shoot 1</td></tr><tr><td>Q2</td><td>0</td><td>-0.167</td><td>0</td><td>Pre-Shoot 1</td></tr><tr><td>Q3</td><td>0</td><td>0</td><td>-0.083</td><td>De-emphasis</td></tr><tr><td>Q4</td><td>0</td><td>0</td><td>-0.167</td><td>De-emphasis</td></tr><tr><td>Q5</td><td>+0.042</td><td>-0.208</td><td>0</td><td>2nd Pre + 1st Pre</td></tr><tr><td>Q6</td><td>+0.042</td><td>-0.125</td><td>-0.125</td><td>2nd Pre + 1st Pre + Post</td></tr><tr><td>Q7</td><td>+0.083</td><td>-0.208</td><td>0</td><td>2nd Pre + 1st Pre</td></tr><tr><td>Q8</td><td>+0.083</td><td>-0.250</td><td>0</td><td>2nd Pre + 1st Pre</td></tr><tr><td>Q9</td><td>+0.083</td><td>-0.250</td><td>-0.042</td><td>2nd Pre + 1st Pre + Post</td></tr></tbody></table></div>
+<h2 id="visualizer">7. 实时 Preset 可视化</h2>
+<div class="card tool"><div><label>Preset</label><select id="preset"></select><label>NRZ pattern</label><input id="bits" value="0000111100011110000"><div class="stats" id="stats"></div><p class="small">x[n] 是原始 NRZ symbol；y[n] 是 FFE 输出。浏览器工具使用与 Python 脚本相同的离散 symbol 模型。</p></div><div><canvas id="plot" width="800" height="330"></canvas></div></div>
+<h2>8. Python 工具</h2>
+<div class="grid"><div class="card half"><h3 style="margin-top:0">CLI</h3><pre>python pcie_tx_preset.py --all
+python pcie_tx_preset.py -p P8 \
+  -b 000011110001111 --plot</pre><a class="btn" href="./pcie_tx_preset.py">下载 pcie_tx_preset.py</a></div><div class="card half"><h3 style="margin-top:0">PyQt5 GUI</h3><pre>python pcie_tx_preset_gui.py</pre><p>支持 preset 下拉框、实时 ratio、实时 Tx FFE 波形。</p><a class="btn" href="./pcie_tx_preset_gui.py">下载 pcie_tx_preset_gui.py</a></div></div>
+<h2>9. 后续学习路径</h2>
+<div class="card"><pre>LTSSM
+  → Recovery.Equalization
+  → Phase 0 / 1 / 2 / 3
+  → Preset Request / Coefficient Request
+  → FS / LF / Update / Accept-Reject
+  → PIPE control
+  → PHY Tx FFE</pre><div class="note warn">本文是数字设计视角的学习模型，不替代 PCIe Base Specification。涉及 P10/Q10、64/128 GT/s 精确条款或 compliance 时，应以对应规范版本为准。</div></div>
+<div class="footer">PCIe Tx FFE study page · MaNan93.github.io</div>
+</div>
+<script>
+const presets={P0:{m2:0,m1:0,p1:-.250},P1:{m2:0,m1:0,p1:-.167},P2:{m2:0,m1:0,p1:-.200},P3:{m2:0,m1:0,p1:-.125},P4:{m2:0,m1:0,p1:0},P5:{m2:0,m1:-.100,p1:0},P6:{m2:0,m1:-.125,p1:0},P7:{m2:0,m1:-.100,p1:-.200},P8:{m2:0,m1:-.125,p1:-.125},P9:{m2:0,m1:-.167,p1:0}}
+const order=['P4','P1','P0','P9','P8','P7','P5','P6','P3','P2'];const sel=document.getElementById('preset');order.forEach(n=>{let o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o)});sel.value='P8';
+function c0(p){return 1-Math.abs(p.m2)-Math.abs(p.m1)-Math.abs(p.p1)}function db(r){return 20*Math.log10(r)}function levels(p){let z=c0(p),va=p.m2+p.m1+z-p.p1,vb=p.m2+p.m1+z+p.p1,vc1=p.m2-p.m1+z+p.p1,vc2=-p.m2+p.m1+z+p.p1,vd=-p.m2-p.m1+z-p.p1;return{va,vb,vc1,vc2,vd,de:db(vb/va),ps1:db(vc1/vb),ps2:db(vc2/vb),boost:db(vd/vb)}}function cleanBits(){return document.getElementById('bits').value.replace(/[ _]/g,'')}function sample(x,i){if(i<0)return x[0];if(i>=x.length)return x[x.length-1];return x[i]}
+function calc(){let name=sel.value,p=presets[name],bits=cleanBits();if(!bits||/[^01]/.test(bits)){return};let x=[...bits].map(b=>b==='1'?1:-1),z=c0(p),y=x.map((_,n)=>p.m2*sample(x,n+2)+p.m1*sample(x,n+1)+z*sample(x,n)+p.p1*sample(x,n-1)),v=levels(p);document.getElementById('stats').innerHTML=[['C-2',p.m2],['C-1',p.m1],['C0',z],['C+1',p.p1],['Pre-Shoot 1',v.ps1.toFixed(2)+' dB'],['De-emphasis',v.de.toFixed(2)+' dB']].map(([a,b])=>`<div class="stat"><b>${a}</b>${typeof b==='number'?b.toFixed(3):b}</div>`).join('');draw(x,y,name)}
+function draw(x,y,name){const c=document.getElementById('plot'),ctx=c.getContext('2d'),w=c.width,h=c.height,pad=45;ctx.clearRect(0,0,w,h);ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.strokeStyle='#d9e2ec';ctx.lineWidth=1;for(let k=-1;k<=1;k++){let yy=pad+(1-k)*(h-2*pad)/2;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(w-pad,yy);ctx.stroke()}function py(v){return pad+(1.15-v)*(h-2*pad)/2.3}function plot(a,color,width){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();let dx=(w-2*pad)/a.length;ctx.moveTo(pad,py(a[0]));for(let i=0;i<a.length;i++){let x0=pad+i*dx,x1=pad+(i+1)*dx;ctx.lineTo(x0,py(a[i]));ctx.lineTo(x1,py(a[i]));if(i+1<a.length)ctx.lineTo(x1,py(a[i+1]))}ctx.stroke()}plot(x,'#9aa5b1',1.6);plot(y,'#0f7ea8',2.7);ctx.fillStyle='#17202a';ctx.font='14px sans-serif';ctx.fillText(`${name} Tx FFE`,pad,22);ctx.fillStyle='#667085';ctx.fillText('Original NRZ',w-155,22);ctx.strokeStyle='#9aa5b1';ctx.beginPath();ctx.moveTo(w-255,17);ctx.lineTo(w-165,17);ctx.stroke();ctx.fillText('FFE output',w-155,42);ctx.strokeStyle='#0f7ea8';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(w-255,37);ctx.lineTo(w-165,37);ctx.stroke()}
+sel.addEventListener('change',calc);document.getElementById('bits').addEventListener('input',calc);calc();
+</script>
+</body>
+</html>
