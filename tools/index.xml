@@ -1,0 +1,18 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>MaNan Notes – 工程工具</title>
+    <link>https://manan93.github.io/tools/</link>
+    <description>Recent content in 工程工具 on MaNan Notes</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    
+	  <atom:link href="https://manan93.github.io/tools/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+  </channel>
+</rss>
