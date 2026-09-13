@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-cn" dir="ltr"><head>
+	<meta name="generator" content="Hugo 0.161.0">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="robots" content="index, follow" />
   <link rel="icon shortcut" href="/favicon.ico" sizes="32x32" />
@@ -8,11 +9,10 @@
 <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 <link fetchpriority="low" href="/site.webmanifest" rel="manifest" />
-<title>工程工具 – MaNan Notes</title>
-  <meta name="description" content="与学习笔记配套的可运行脚本和浏览器交互工具。
-PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI " /><link rel="canonical" href="https://manan93.github.io/tools/" itemprop="url" />
+<title>MaNan Notes</title>
+  <meta name="description" content="MaNan 的数字 IC、PCIe 与工程工具学习笔记。" /><link rel="canonical" href="https://manan93.github.io/" itemprop="url" />
 
-<meta property="og:title" content="工程工具">
+<meta property="og:title" content="MaNan Notes">
 <meta
   property="og:description"
   content="
@@ -25,17 +25,17 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI " /><li
   content="
     website
   ">
-<meta property="og:url" content="https://manan93.github.io/tools/">
+<meta property="og:url" content="https://manan93.github.io/">
 
 
-  <meta itemprop="name" content="工程工具">
-  <meta itemprop="description" content="与学习笔记配套的可运行脚本和浏览器交互工具。
-PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
-  <meta itemprop="wordCount" content="37">
+  <meta itemprop="name" content="MaNan Notes">
+  <meta itemprop="description" content="Digital IC · PCIe · Engineering 设计、协议与工具笔记 记录数字 IC 开发中的理解、验证方法与可复用工具。">
+  <meta itemprop="datePublished" content="2021-07-29T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2021-07-29T00:00:00+00:00">
+  <meta itemprop="wordCount" content="150">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="工程工具">
-  <meta name="twitter:description" content="与学习笔记配套的可运行脚本和浏览器交互工具。
-PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
+  <meta name="twitter:title" content="MaNan Notes">
+  <meta name="twitter:description" content="Digital IC · PCIe · Engineering 设计、协议与工具笔记 记录数字 IC 开发中的理解、验证方法与可复用工具。">
 
     <link rel="preload" href="/css/compiled/main.min.499636f59854c2ab4e81e0be798533242c36b6871830f2f6f69697c4567c8c53.css" as="style" integrity="sha256-SZY29ZhUwqtOgeC&#43;eYUzJCw2tocYMPL29paXxFZ8jFM=" />
     <link href="/css/compiled/main.min.499636f59854c2ab4e81e0be798533242c36b6871830f2f6f69697c4567c8c53.css" rel="stylesheet" integrity="sha256-SZY29ZhUwqtOgeC&#43;eYUzJCw2tocYMPL29paXxFZ8jFM=" />
@@ -78,7 +78,7 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
   title=""
   href="/tools"
   
-  class="hx:text-sm hx:contrast-more:text-gray-700 hx:contrast-more:dark:text-gray-100 hx:relative hx:-ml-2 hx:hidden hx:whitespace-nowrap hx:p-2 hx:md:inline-flex hx:items-center hx:gap-1 hx:font-medium"
+  class="hx:text-sm hx:contrast-more:text-gray-700 hx:contrast-more:dark:text-gray-100 hx:relative hx:-ml-2 hx:hidden hx:whitespace-nowrap hx:p-2 hx:md:inline-flex hx:items-center hx:gap-1 hx:text-gray-600 hx:hover:text-gray-800 hx:dark:text-gray-400 hx:dark:hover:text-gray-200"
 ><span class="hx:text-center">工具</span>
 </a><a
   title=""
@@ -105,7 +105,7 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
 </div>
 
   <div class="hx:mx-auto hx:flex hextra-max-page-width">
-    <aside class="hextra-sidebar-container hx:flex hx:flex-col hx:print:hidden hx:md:top-[var(--hextra-navbar-height)] hx:md:shrink-0 hx:md:w-64 hx:md:self-start hx:max-md:[transform:translate3d(0,-100%,0)] hx:md:sticky">
+    <aside class="hextra-sidebar-container hx:flex hx:flex-col hx:print:hidden hx:md:top-[var(--hextra-navbar-height)] hx:md:shrink-0 hx:md:w-64 hx:md:self-start hx:max-md:[transform:translate3d(0,-100%,0)] hx:md:hidden">
   <div class="hextra-scrollbar hx:overflow-y-auto hx:overflow-x-hidden hx:p-4 hx:grow hx:md:h-[calc(100vh-var(--hextra-navbar-height)-var(--menu-height))]">
     <ul class="hx:flex hx:flex-col hx:gap-1 hx:md:hidden">
       
@@ -151,18 +151,15 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
       <span class="hx:min-w-0 [word-break:break-word]">文章</span>
     </a>
   </div></li>
-              <li class="open"><div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center" data-active="true">
+              <li class=""><div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center" data-active="false">
     <a
-      class="hx:flex hx:items-center hx:justify-between hx:gap-2 hx:grow hx:cursor-pointer hx:rounded-sm hx:px-2 hx:py-1.5 hx:text-sm hx:transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] hx:hextra-focus-visible-inset hextra-sidebar-active-item hx:bg-primary-100 hx:font-semibold hx:text-primary-800 hx:contrast-more:border hx:contrast-more:border-primary-500 hx:dark:bg-primary-400/10 hx:dark:text-primary-600 hx:contrast-more:dark:border-primary-500"
+      class="hx:flex hx:items-center hx:justify-between hx:gap-2 hx:grow hx:cursor-pointer hx:rounded-sm hx:px-2 hx:py-1.5 hx:text-sm hx:transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] hx:hextra-focus-visible-inset hx:text-gray-500 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:contrast-more:border hx:contrast-more:border-transparent hx:contrast-more:text-gray-900 hx:contrast-more:hover:border-gray-900 hx:dark:text-neutral-400 hx:dark:hover:bg-primary-100/5 hx:dark:hover:text-gray-50 hx:contrast-more:dark:text-gray-50 hx:contrast-more:dark:hover:border-gray-50"
       href="/tools/"
       
     >
       <span class="hx:min-w-0 [word-break:break-word]">工具</span>
     </a>
-  </div>
-  
-  
-  </li>
+  </div></li>
               <li class=""><div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center" data-active="false">
     <a
       class="hx:flex hx:items-center hx:justify-between hx:gap-2 hx:grow hx:cursor-pointer hx:rounded-sm hx:px-2 hx:py-1.5 hx:text-sm hx:transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] hx:hextra-focus-visible-inset hx:text-gray-500 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:contrast-more:border hx:contrast-more:border-transparent hx:contrast-more:text-gray-900 hx:contrast-more:hover:border-gray-900 hx:dark:text-neutral-400 hx:dark:hover:bg-primary-100/5 hx:dark:hover:text-gray-50 hx:contrast-more:dark:text-gray-50 hx:contrast-more:dark:hover:border-gray-50"
@@ -174,14 +171,10 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
   </div></li>
     </ul>
 
-    <ul class="hx:flex hx:flex-col hx:gap-1 hx:max-md:hidden">
-        
-        
-      </ul>
     </div>
   
   
-    <div class="  hx:sticky hx:bottom-0 hx:max-h-(--menu-height) hx:bg-white hx:dark:bg-dark hx:mx-4 hx:py-4 hx:shadow-[0_-12px_16px_#fff] hx:flex hx:items-center hx:gap-2 hx:border-gray-200 hx:dark:border-neutral-800 hx:dark:shadow-[0_-12px_16px_#111] hx:contrast-more:border-neutral-400 hx:contrast-more:shadow-none hx:contrast-more:dark:shadow-none hx:border-t" data-toggle-animation="show"><div class="hx:flex hx:grow hx:flex-col"><div class="hx:flex hx:justify-items-start hx:group" data-theme="light">
+    <div class="hx:md:hidden  hx:sticky hx:bottom-0 hx:max-h-(--menu-height) hx:bg-white hx:dark:bg-dark hx:mx-4 hx:py-4 hx:shadow-[0_-12px_16px_#fff] hx:flex hx:items-center hx:gap-2 hx:border-gray-200 hx:dark:border-neutral-800 hx:dark:shadow-[0_-12px_16px_#111] hx:contrast-more:border-neutral-400 hx:contrast-more:shadow-none hx:contrast-more:dark:shadow-none hx:border-t" data-toggle-animation="show"><div class="hx:flex hx:grow hx:flex-col"><div class="hx:flex hx:justify-items-start hx:group" data-theme="light">
   <button
     title="切换主题"
     data-state="closed"
@@ -245,54 +238,168 @@ PCIe Preset 在线可视化 PCIe Preset Python CLI PCIe Preset PyQt5 GUI">
   </ul>
 </div>
 </div></div></aside>
+    <main
+      id="content"
+      class="hx:w-full hx:break-words hx:min-h-[calc(100vh-var(--hextra-navbar-height))] hx:min-w-0 hx:pb-8 hx:pt-8 hx:md:pt-12 hx:pl-[max(env(safe-area-inset-left),1.5rem)] hx:pr-[max(env(safe-area-inset-right),1.5rem)]"
+    >
+      
+      <div class="hx:flex hx:flex-col hx:items-start">
+        
+        <div
+  class=" hextra-feature-grid hx:grid hx:sm:max-lg:grid-cols-2 hx:max-sm:grid-cols-1 hx:gap-4 hx:w-full not-prose"
+  style="--hextra-feature-grid-cols: 2; %!s(&lt;nil&gt;)"
+>
+  <div class="hx:w-full">
     
-<nav class="hextra-toc hx:order-last hx:hidden hx:w-64 hx:shrink-0 hx:xl:block hx:print:hidden hx:px-4" aria-label="目录">
-    <div class="hextra-scrollbar hx:sticky hx:top-[var(--hextra-navbar-height)] hx:overflow-y-auto hx:pr-4 hx:pt-6 hx:text-sm [hyphens:auto] hx:max-h-[calc(100vh-var(--hextra-navbar-height)-env(safe-area-inset-bottom))] hx:ltr:-mr-4 hx:rtl:-ml-4">
-      <div class=" hx:sticky hx:bottom-0 hx:flex hx:flex-col hx:items-start hx:gap-2 hx:pb-8 hx:border-gray-200 hx:dark:border-neutral-800 hx:contrast-more:border-t hx:contrast-more:border-neutral-400 hx:contrast-more:shadow-none hx:contrast-more:dark:border-neutral-400">
-        <button id="backToTop" tabindex="-1" class="hx:cursor-pointer hx:transition-all hx:duration-75 hx:opacity-0 hx:text-xs hx:font-medium hx:text-gray-500 hx:hover:text-gray-900 hx:dark:text-gray-400 hx:dark:hover:text-gray-100 hx:contrast-more:text-gray-800 hx:contrast-more:dark:text-gray-50">
-          <span>返回顶部</span>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" focusable="false" class="hx:inline hx:ltr:ml-1 hx:rtl:mr-1 hx:h-3.5 hx:w-3.5 hx:rounded-full hx:border hx:border-gray-500 hx:hover:border-gray-900 hx:dark:border-gray-400 hx:dark:hover:border-gray-100 hx:contrast-more:border-gray-800 hx:contrast-more:dark:border-gray-50">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-          </svg>
-        </button>
+  <a
+  
+  class=" not-prose hx:inline-flex hx:items-center hx:rounded-full hx:gap-2 hx:px-3 hx:py-1 hx:text-xs hx:text-gray-600 hx:dark:text-gray-400 hx:bg-gray-100 hx:dark:bg-neutral-800 hx:border-gray-200 hx:dark:border-neutral-800 hx:border hx:hover:border-gray-400 hx:dark:hover:text-gray-50 hx:dark:hover:border-gray-600 hx:transition-all hx:ease-in hx:duration-200"
+  
+  >
+  Digital IC · PCIe · Engineering
+</a>
+
+  <h1
+  class="not-prose hx:text-4xl hx:font-bold hx:leading-none hx:tracking-tighter hx:md:text-5xl hx:py-2 hx:bg-clip-text hx:text-transparent hx:bg-gradient-to-r hx:from-gray-900 hx:to-gray-600 hx:dark:from-gray-100 hx:dark:to-gray-400"
+  
+>
+  设计、协议与工具笔记
+</h1>
+
+  <p
+  class="not-prose hx:text-xl hx:text-gray-600 hx:dark:text-gray-400 hx:sm:text-xl"
+  
+>
+  记录数字 IC 开发中的理解、验证方法与可复用工具。
+</p>
+
+  <a
+    href="docs"
+    class="not-prose hx:font-medium hx:cursor-pointer hx:px-6 hx:py-3 hx:rounded-full hx:text-center hx:text-white hx:inline-block hx:bg-primary-600 hx:hover:bg-primary-700 hx:hextra-focus-visible hx:dark:bg-primary-600 hx:dark:hover:bg-primary-700 hx:transition-all hx:ease-in hx:duration-200"
+    
+    >浏览专题</a>
+
+
+  </div></div>
+
+<div
+  class="hextra-feature-grid hx:grid hx:sm:max-lg:grid-cols-2 hx:max-sm:grid-cols-1 hx:gap-4 hx:w-full not-prose"
+  style="--hextra-feature-grid-cols: 3; "
+>
+  
+  <a
+    href="pcie-tx-ffe" 
+    
+    class=" hextra-feature-card not-prose hx:block hx:relative hx:overflow-hidden hx:rounded-3xl hx:border hx:border-gray-200 hx:hover:border-gray-300 hx:dark:border-neutral-800 hx:dark:hover:border-neutral-700 hx:before:pointer-events-none hx:before:absolute hx:before:inset-0 hx:before:bg-glass-gradient"
+  >
+    <div class="hx:relative hx:w-full hx:p-6">
+      <h3 class="hx:text-2xl hx:font-medium hx:leading-6 hx:mb-2 hx:flex hx:items-center">
+        <span class="hx:pr-2"><svg height=1.5rem xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg></span>
+        <span>PCIe Tx FFE &amp; Preset</span>
+      </h3>
+      <p class="hx:text-gray-500 hx:dark:text-gray-400 hx:text-sm hx:leading-6">从 Cursor、Pre-Shoot、De-emphasis 到 Gen3–Gen6 Preset，并附实时可视化。</p>
+    </div></a>
+
+  <a
+    href="IEEE-Standard-754-Floating-Point-Numbers/2021/07/29" 
+    
+    class=" hextra-feature-card not-prose hx:block hx:relative hx:overflow-hidden hx:rounded-3xl hx:border hx:border-gray-200 hx:hover:border-gray-300 hx:dark:border-neutral-800 hx:dark:hover:border-neutral-700 hx:before:pointer-events-none hx:before:absolute hx:before:inset-0 hx:before:bg-glass-gradient"
+  >
+    <div class="hx:relative hx:w-full hx:p-6">
+      <h3 class="hx:text-2xl hx:font-medium hx:leading-6 hx:mb-2 hx:flex hx:items-center">
+        <span class="hx:pr-2"><svg height=1.5rem xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span>
+        <span>IEEE 754 Floating Point</span>
+      </h3>
+      <p class="hx:text-gray-500 hx:dark:text-gray-400 hx:text-sm hx:leading-6">浮点数格式、指数、尾数与特殊值的中英文学习笔记。</p>
+    </div></a>
+
+  <a
+    href="tools" 
+    
+    class=" hextra-feature-card not-prose hx:block hx:relative hx:overflow-hidden hx:rounded-3xl hx:border hx:border-gray-200 hx:hover:border-gray-300 hx:dark:border-neutral-800 hx:dark:hover:border-neutral-700 hx:before:pointer-events-none hx:before:absolute hx:before:inset-0 hx:before:bg-glass-gradient"
+  >
+    <div class="hx:relative hx:w-full hx:p-6">
+      <h3 class="hx:text-2xl hx:font-medium hx:leading-6 hx:mb-2 hx:flex hx:items-center">
+        <span class="hx:pr-2"><svg height=1.5rem xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></span>
+        <span>工程工具</span>
+      </h3>
+      <p class="hx:text-gray-500 hx:dark:text-gray-400 hx:text-sm hx:leading-6">浏览器交互工具以及 Python CLI / GUI 下载。</p>
+    </div></a>
+
+
+</div>
+
+
+        
       </div>
-    </div>
-  </nav>
-
-
-    <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--hextra-navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8 hx:pr-[calc(env(safe-area-inset-right)-1.5rem)]">
-      <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
-        
-        <div class="hx:mt-1.5 hx:flex hx:items-center hx:gap-1 hx:overflow-hidden hx:text-sm hx:text-gray-500 hx:dark:text-gray-400 hx:contrast-more:text-current"><div class="hx:whitespace-nowrap hx:transition-colors hx:font-medium hx:text-gray-700 hx:contrast-more:font-bold hx:contrast-more:text-current hx:dark:text-gray-100 hx:contrast-more:dark:text-current">工程工具</div>
+      
+    </main>
   </div>
 
-        <div class="content">
-          
-            <div class="hx:flex hx:flex-col hx:sm:flex-row hx:items-start hx:sm:items-center hx:sm:justify-between hx:gap-4 hx:mb-4">
-              <h1 class="hx:mb-0">工程工具</h1>
-              
-            </div>
-          
-          
-          <p>与学习笔记配套的可运行脚本和浏览器交互工具。</p>
-<ul>
-<li><a
-    href="/pcie-tx-ffe/#visualizer">PCIe Preset 在线可视化</a></li>
-<li><a
-    href="/pcie-tx-ffe/pcie_tx_preset.py">PCIe Preset Python CLI</a></li>
-<li><a
-    href="/pcie-tx-ffe/pcie_tx_preset_gui.py">PCIe Preset PyQt5 GUI</a></li>
-</ul>
-
-          
-        </div>
-        <div class="hx:mt-16"></div>
-        
-      </main>
-    </article>
-  </div>
-
-      <footer class="hextra-footer hx:bg-gray-100 hx:pb-[env(safe-area-inset-bottom)] hx:dark:bg-neutral-900 hx:print:bg-transparent"><div class="hextra-custom-footer hextra-max-footer-width hx:mx-auto hx:pl-[max(env(safe-area-inset-left),1.5rem)] hx:pr-[max(env(safe-area-inset-right),1.5rem)] hx:text-gray-600 hx:dark:text-gray-400"></div><div
+      <footer class="hextra-footer hx:bg-gray-100 hx:pb-[env(safe-area-inset-bottom)] hx:dark:bg-neutral-900 hx:print:bg-transparent"><div class="hx:mx-auto hx:flex hx:gap-2 hx:py-2 hx:px-4 hextra-max-footer-width"><div class="hx:flex hx:justify-items-start hx:group" data-theme="light">
+  <button
+    title="切换主题"
+    data-state="closed"
+    data-location="bottom"
+    class="hextra-theme-toggle hx:cursor-pointer hx:rounded-md hx:text-left hx:font-medium hx:h-7 hx:px-2 hx:text-xs hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:dark:hover:bg-primary-100/5 hx:dark:hover:text-gray-50 hx:font-medium hx:text-gray-600 hx:transition-colors hx:dark:text-gray-400 hx:grow"
+    type="button"
+    aria-label="切换主题"
+    aria-expanded="false"
+    aria-haspopup="menu"
+  >
+    <div class="hx:flex hx:items-center hx:gap-2 hx:capitalize"><svg height=12 class="hx:group-data-[theme=dark]:hidden hx:group-data-[theme=system]:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg><span class="hx:group-data-[theme=dark]:hidden hx:group-data-[theme=system]:hidden">浅色</span><svg height=12 class="hx:group-data-[theme=light]:hidden hx:group-data-[theme=system]:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg><span class="hx:group-data-[theme=light]:hidden hx:group-data-[theme=system]:hidden">深色</span><svg height=12 class="hx:group-data-[theme=dark]:hidden hx:group-data-[theme=light]:hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"  fill="currentColor">
+  <path d="M 11.996094,2 C 6.4986225,2.0192368 2.03125,6.5024993 2.03125,12 c 0,5.497501 4.4673725,9.980763 9.964844,10 H 12 12.0039 c 5.497471,-0.01924 9.964844,-4.502499 9.964844,-10 0,-5.4975007 -4.467373,-9.9807632 -9.964844,-10 H 12 Z M 12,4 c 4.417218,0.017598 7.96875,3.5822356 7.96875,8 0,4.417764 -3.551532,7.982402 -7.96875,8 z" />
+</svg>
+<span class="hx:group-data-[theme=dark]:hidden hx:group-data-[theme=light]:hidden">跟随系统</span></div>
+  </button>
+  <ul
+    class="hextra-theme-toggle-options hx:hidden hx:z-20 hx:max-h-64 hx:overflow-auto hx:rounded-lg hx:border hx:border-gray-200 hx:bg-white hx:p-1 hx:text-sm hx:shadow-lg hx:dark:border-neutral-700 hx:dark:bg-neutral-900"
+    style="position: fixed; inset: auto auto 0px 0px; margin: 0px; min-width: 100px;"
+    data-theme="light"
+    role="menu"
+  >
+    <li role="none" class="hx:flex hx:flex-col">
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked="true"
+        tabindex="-1"
+        data-item="light"
+        class="hx:text-gray-700 hx:dark:text-gray-300 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:dark:hover:bg-neutral-800 hx:dark:hover:text-gray-100 hx:relative hx:cursor-pointer hx:whitespace-nowrap hx:rounded-sm hx:py-1.5 hx:transition-colors hx:ltr:pl-3 hx:ltr:pr-9 hx:rtl:pr-3 hx:rtl:pl-9 hx:text-left hx:w-full hx:bg-transparent hx:border-0"
+      >
+        浅色
+         <span class="hx:absolute hx:inset-y-0 hx:flex hx:items-center hx:ltr:right-3 hx:rtl:left-3 hx:group-data-[theme=dark]:hidden hx:group-data-[theme=system]:hidden"><svg height=1em width=1em xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+      </button>
+    </li>
+    <li role="none" class="hx:flex hx:flex-col">
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked="false"
+        tabindex="-1"
+        data-item="dark"
+        class="hx:text-gray-700 hx:dark:text-gray-300 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:dark:hover:bg-neutral-800 hx:dark:hover:text-gray-100 hx:relative hx:cursor-pointer hx:whitespace-nowrap hx:rounded-sm hx:py-1.5 hx:transition-colors hx:ltr:pl-3 hx:ltr:pr-9 hx:rtl:pr-3 hx:rtl:pl-9 hx:text-left hx:w-full hx:bg-transparent hx:border-0"
+      >
+        深色
+         <span class="hx:absolute hx:inset-y-0 hx:flex hx:items-center hx:ltr:right-3 hx:rtl:left-3 hx:group-data-[theme=light]:hidden hx:group-data-[theme=system]:hidden"><svg height=1em width=1em xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+      </button>
+    </li>
+    <li role="none" class="hx:flex hx:flex-col">
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked="false"
+        tabindex="-1"
+        data-item="system"
+        class="hx:text-gray-700 hx:dark:text-gray-300 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:dark:hover:bg-neutral-800 hx:dark:hover:text-gray-100 hx:relative hx:cursor-pointer hx:whitespace-nowrap hx:rounded-sm hx:py-1.5 hx:transition-colors hx:ltr:pl-3 hx:ltr:pr-9 hx:rtl:pr-3 hx:rtl:pl-9 hx:text-left hx:w-full hx:bg-transparent hx:border-0"
+      >
+        跟随系统
+         <span class="hx:absolute hx:inset-y-0 hx:flex hx:items-center hx:ltr:right-3 hx:rtl:left-3 hx:group-data-[theme=dark]:hidden hx:group-data-[theme=light]:hidden"><svg height=1em width=1em xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+      </button>
+    </li>
+  </ul>
+</div>
+</div><hr class="hx:border-gray-200 hx:dark:border-neutral-800" /><div class="hextra-custom-footer hextra-max-footer-width hx:mx-auto hx:pl-[max(env(safe-area-inset-left),1.5rem)] hx:pr-[max(env(safe-area-inset-right),1.5rem)] hx:text-gray-600 hx:dark:text-gray-400"></div><div
       class="hextra-max-footer-width hx:mx-auto hx:flex hx:justify-center hx:py-12 hx:pl-[max(env(safe-area-inset-left),1.5rem)] hx:pr-[max(env(safe-area-inset-right),1.5rem)] hx:text-gray-600 hx:dark:text-gray-400 hx:md:justify-start"
     >
       <div class="hx:flex hx:w-full hx:flex-col hx:items-center hx:sm:items-start"><div class="hx:font-semibold"><a class="hx:flex hx:text-sm hx:items-center hx:gap-1 hx:text-current" target="_blank" rel="noopener noreferrer" title="Hextra GitHub Homepage" href="https://github.com/imfing/hextra">
