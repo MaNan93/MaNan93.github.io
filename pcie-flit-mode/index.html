@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PCIe Flit Mode：能力、声明与协商 | MaNan Notes</title>
+<meta name="description" content="梳理 PCIe Flit Mode 的 Capability、TS Advertisement、Flit_Mode_Enabled 协商结果，以及它与 64 GT/s、L0s/L0p 的关系。">
+<link rel="canonical" href="https://manan93.github.io/pcie-flit-mode/">
+<meta property="og:title" content="PCIe Flit Mode：能力、声明与协商">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://manan93.github.io/pcie-flit-mode/">
+<style>
+:root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#59636e;--line:#d0d7de;--accent:#0969da;--code:#f6f8fa;--green:#1a7f37}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}.wrap{max-width:980px;margin:auto;padding:36px 22px 80px}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:36px}.top a{color:var(--accent);text-decoration:none}.brand{font-weight:800;color:var(--text)!important}.hero h1{font-size:42px;line-height:1.2;margin:0 0 12px}.hero p{color:var(--muted);font-size:18px}.meta{color:var(--muted);font-size:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin:20px 0}h2{margin-top:44px;font-size:28px}h3{margin-top:28px}code,pre{font-family:Consolas,"SFMono-Regular",monospace}code{background:var(--code);padding:.15em .35em;border-radius:5px}pre{background:#0d1117;color:#e6edf3;padding:18px;border-radius:10px;overflow:auto;line-height:1.55}table{width:100%;border-collapse:collapse;background:#fff;margin:16px 0}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}th{background:#f6f8fa}.key{border-left:4px solid var(--accent);padding:12px 16px;background:#eef6ff;margin:18px 0}.good{border-left-color:var(--green);background:#eefbf2}.eq{text-align:center;font-size:21px;font-family:Cambria,serif;margin:20px 0}.footer{margin-top:60px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted)}@media(max-width:650px){.hero h1{font-size:32px}.top{align-items:flex-start;gap:10px;flex-direction:column}table{font-size:14px}}
+</style>
+</head>
+<body><main class="wrap">
+<div class="top"><a class="brand" href="/">MaNan Notes</a><nav><a href="/blog/">文章</a> · <a href="/docs/">专题</a> · <a href="/pcie-tx-ffe/">Tx FFE</a></nav></div>
+<header class="hero"><h1>PCIe Flit Mode：能力、声明与协商</h1><p>把 Flit Mode Supported、Flit Mode Disable、TS Advertisement、Flit_Mode_Enabled 和 Flit Mode Status 放回 LTSSM 时间线上理解。</p><div class="meta">2026-09-14 · PCIe · Flit Mode · LTSSM</div></header>
+
+<div class="key"><strong>核心结论：</strong>Flit Mode 是 <strong>Data Stream Mode</strong>，64 GT/s 是 <strong>Data Rate</strong>。两者不是一个概念。64 GT/s 要求 Flit Mode，但 Flit Mode 并不要求 64 GT/s。</div>
+
+<h2>1. 五个术语分别是什么</h2>
+<table><thead><tr><th>名称</th><th>性质</th><th>位置</th><th>含义</th></tr></thead><tbody>
+<tr><td><strong>Flit Mode Supported</strong></td><td>Capability</td><td>PCI Express Capabilities Register</td><td>Component 是否具备 Flit Mode 能力</td></tr>
+<tr><td><strong>Flit Mode Disable</strong></td><td>Control</td><td>Link Control Register</td><td>是否禁止使用 Flit Mode</td></tr>
+<tr><td><strong>Flit Mode Supported bit</strong></td><td>Advertisement</td><td>TS1/TS2 Data Rate Identifier</td><td>在线路上向 Link Partner 声明本次训练可以使用 Flit Mode</td></tr>
+<tr><td><strong>Flit_Mode_Enabled</strong></td><td>Internal Variable</td><td>协议/LTSSM 内部</td><td>双方 Flit Mode 的最终协商结果</td></tr>
+<tr><td><strong>Flit Mode Status</strong></td><td>Status</td><td>Link Status 2 Register</td><td>软件可见的当前/即将采用的 Flit Mode 状态</td></tr>
+</tbody></table>
+<p>最容易混淆的是 <code>Flit Mode Supported</code> 和 <code>Flit_Mode_Enabled</code>：前者回答“我有没有能力”，后者回答“这条 Link 本次训练最终用不用”。</p>
+
+<h2>2. TS 中的 Flit Mode Supported 从哪里来</h2>
+<p>TS1/TS2 中的 <code>Flit Mode Supported</code> 是本地能力与软件控制共同作用后的线上声明：</p>
+<div class="eq">TS.FlitModeSupported = Capability.FlitModeSupported ∧ ¬ FlitModeDisable</div>
+<table><thead><tr><th>Capability Supported</th><th>Disable</th><th>TS Flit Mode Supported</th></tr></thead><tbody><tr><td>0</td><td>0</td><td>0</td></tr><tr><td>0</td><td>1</td><td>0</td></tr><tr><td>1</td><td>1</td><td>0</td></tr><tr><td><strong>1</strong></td><td><strong>0</strong></td><td><strong>1</strong></td></tr></tbody></table>
+<p>因此，一个支持 Flit Mode 且没有被 Disable 的 Port，在初始训练第一次于 <strong>Polling.Active</strong> 发送 TS1 时，就已经可以把 <code>Flit Mode Supported</code> 置 1。</p>
+
+<h2>3. Polling：开始声明能力</h2>
+<pre>Detect
+  ↓
+Polling.Active
+  │
+  │ TX TS1: Flit Mode Supported = 1
+  │ RX TS1: Partner Flit Mode Supported
+  │
+  └─ 双方开始知道对端是否支持 Flit Mode
+       ↓
+Polling.Configuration
+  │
+  │ TS2 继续携带 Flit Mode Supported
+  ↓
+Configuration</pre>
+<p>这里必须注意：Polling 阶段获得的是对端的 <strong>capability advertisement</strong>，还不能把它等价成 <code>Flit_Mode_Enabled=1</code>。</p>
+
+<h2>4. Configuration.Linkwidth.Accept：形成协商结果</h2>
+<p>进入 Configuration 后，协议根据此前 Polling/Configuration 中交换的信息确定本次 Link 的 Data Stream Mode。关键结果由内部变量 <code>Flit_Mode_Enabled</code> 表示。</p>
+<pre>Configuration.Linkwidth.Start
+             ↓
+Configuration.Linkwidth.Accept
+             │
+             │  根据此前双方交换的
+             │  Flit Mode Supported 信息
+             ↓
+       Flit_Mode_Enabled
+          1 / 0
+             │
+             ├─ 1 → 本次 Link 使用 Flit Mode
+             └─ 0 → 本次 Link 使用 Non-Flit Mode</pre>
+<div class="key good"><strong>一句话：</strong>Polling 是“我支持 Flit”；<code>Configuration.Linkwidth.Accept</code> 是形成“我们这条 Link 最终是否使用 Flit”的协商结果的关键阶段。</div>
+
+<h2>5. Configuration.Complete 与 64 GT/s Capability</h2>
+<p>到了 <code>Configuration.Complete</code>，Flit Mode 已经完成协商。对于初始 Link Training，满足规范规定的条件后，此时才允许使用特殊的 <code>Supported Link Speeds = 1_0111b</code> 来表示支持 2.5 GT/s through 64.0 GT/s inclusive。</p>
+<pre>Polling
+  │  TS Flit Mode Supported
+  ↓
+双方交换 Flit capability
+  ↓
+Configuration.Linkwidth.Accept
+  │
+  └─ Flit_Mode_Enabled 确定
+       ↓
+Configuration.Complete
+  │
+  └─ Flit Mode has been negotiated
+       ↓
+满足条件时 Supported Link Speeds = 1_0111b
+       ↓
+声明 64 GT/s capability</pre>
+<p><code>1_0111b</code> 表示的是 <strong>支持 64 GT/s</strong>，并不表示当前 TS 正在以 64 GT/s 传输。</p>
+
+<h2>6. Flit Mode 与 Gen6 速率是两个维度</h2>
+<div class="eq">64 GT/s ⇒ Flit Mode</div>
+<div class="eq">Flit Mode ⇏ 64 GT/s</div>
+<p>所以一个按 PCIe 6.x 协议设计、最高速率只有 32 GT/s 的 Component，仍然可以实现并成功协商 Flit Mode：</p>
+<pre>Max Data Rate = 32 GT/s
+Flit Mode Supported = 1
+        ↓
+Polling: TS Flit Mode Supported = 1
+        ↓
+Configuration: Flit_Mode_Enabled = 1
+        ↓
+最终可以工作在：32 GT/s + Flit Mode</pre>
+<p>因此阅读 PCIe 6.x 新功能时，不能看到“PCIe 6.0 新增”就直接理解成“64 GT/s 专属”。应该继续判断该功能绑定的是 <strong>Data Rate</strong> 还是 <strong>Data Stream Mode</strong>。</p>
+
+<h2>7. L0s / L0p：一个典型例子</h2>
+<p>L0s/L0p 正好说明为什么必须区分 Flit Mode 和 Gen6 Data Rate。更准确的分类是：</p>
+<table><thead><tr><th>Data Stream Mode</th><th>L0s</th><th>L0p</th></tr></thead><tbody><tr><td>Non-Flit Mode</td><td>可支持</td><td>不使用</td></tr><tr><td>Flit Mode</td><td>不支持</td><td>可支持</td></tr></tbody></table>
+<p>因此“最高只有 Gen5/32 GT/s，但按 PCIe 6.x 实现”的设备，如果协商成 Flit Mode，并不能因为速率只有 32 GT/s 就简单套用 Non-Flit 的 L0s 规则。这里真正决定相关机制的是 Data Stream Mode。</p>
+
+<h2>8. 完整控制链</h2>
+<pre>Component Capability
+Flit Mode Supported
+        │
+        ├──────────────┐
+        │              │
+        │       Flit Mode Disable
+        │         (Control)
+        │              │
+        └──────┬───────┘
+               ↓
+     TS Flit Mode Supported
+        (Advertisement)
+               │
+               │ Polling / Configuration
+               │ 双方交换
+               ↓
+   Configuration.Linkwidth.Accept
+               │
+               ↓
+       Flit_Mode_Enabled
+      (Negotiation Result)
+               │
+               ↓
+       Flit Mode Status
+          (Status)</pre>
+
+<h2>9. 最终记忆模型</h2>
+<div class="card"><strong>能力：</strong>Flit Mode Supported<br><strong>软件控制：</strong>Flit Mode Disable<br><strong>从哪里开始在线上声明：</strong>Polling.Active 的 TS1；随后 TS2 继续携带<br><strong>协商结果：</strong><code>Flit_Mode_Enabled</code><br><strong>关键协商阶段：</strong>Configuration.Linkwidth.Accept<br><strong>到 Configuration.Complete：</strong>Flit Mode 已经 negotiated，满足条件时可以进一步声明 64 GT/s capability。</div>
+<p>最重要的理解不是“Flit Mode 是 Gen6 的功能”，而是：<strong>Flit Mode 是一个独立的 Data Stream Mode；64 GT/s 强制要求它，所以很多 Flit Mode 规则表面上看起来像是 64 GT/s 规则。</strong></p>
+
+<div class="footer">MaNan Notes · PCIe learning notes · 本文用于协议学习与 RTL/LTSSM 设计理解，具体实现以对应版本 PCI Express Base Specification 为准。</div>
+</main></body></html>
