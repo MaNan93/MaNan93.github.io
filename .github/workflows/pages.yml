@@ -12,7 +12,6 @@ on:
     branches:
       - main
 
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 permissions:
@@ -20,7 +19,6 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -59,11 +57,11 @@ jobs:
             --ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/,/^http:\/\/c\.biancheng\.net/"
         working-directory: chirpy-src
 
-      # The repository previously contained Hugo/Hextra sources and generated
-      # output in the repository root. Pages is deployed from the _site
-      # artifact below, so root-level generated files are not needed.
-      # Keep only the actual Chirpy source and repository maintenance files.
-      - name: Clean legacy site files
+      # Keep chirpy-src as the only hand-maintained site source, but mirror the
+      # generated site to repository root as a compatibility fallback for
+      # branch-based GitHub Pages. The Pages artifact below remains authoritative
+      # when the repository is configured for GitHub Actions deployment.
+      - name: Publish generated site to repository root
         if: github.event_name == 'push'
         run: |
           shopt -s dotglob nullglob
@@ -76,10 +74,13 @@ jobs:
             rm -rf -- "$path"
           done
 
+          cp -a _site/. .
+          touch .nojekyll
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore: remove legacy Hugo and generated site files [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: publish Chirpy output [skip ci]"
           git push
 
       - name: Upload site artifact
