@@ -165,7 +165,7 @@ FM  MRd32 = 0x03
 下面这块不是静态图片，而是一个可交互的 bit-field explorer：
 
 - 下拉框可以切换 MRd/MWr、I/O、Configuration、Completion、AtomicOp、Message；
-- 左侧显示 NFM，右侧显示 FM；
+- **上方显示 NFM，下方显示 FM**，更适合当前页面宽度；
 - 每个 DW 都带 `31...0` bit ruler；
 - 字段宽度按实际 bit 数显示；
 - **点击字段**会显示 bit 范围与字段含义；
