@@ -158,121 +158,50 @@ FM  MRd32 = 0x03
 
 ---
 
-## 5. MWr64：直接对照协议原图
+## 5. MWr64：NFM → FM 的字段重组
 
-MWr64 是最适合观察 NFM → FM Header 重组的例子。
+下面直接用渲染后的图对照 MWr64。左侧按 PCIe 5.0 Figure 2-17 的 NFM 字段语义绘制，右侧按 PCIe 6.0 Figure 2-39 的 FM Header Base 语义绘制。字段块宽度按 bit 数比例显示，因此可以直接观察字段在一个 DW 内的相对位置。
 
-### 5.1 NFM：PCIe 5.0 Figure 2-17
+![MWr64 NFM to FM](/assets/img/posts/pcie6-mwr64-nfm-to-fm.svg)
 
-协议原图：**Figure 2-17 — Request Header Format for 64-bit Addressing of Memory**。
+从图上可以很直观地看到：
 
-这张图里可以精确看到：
+- NFM 的 `Fmt=011 + Type=00000` 在 FM 中收敛为 `Type[7:0]=0x60`；
+- `Fmt` 不再单独存在，“4DW + with data”的语义由 FM Type 本身定义；
+- NFM 的 Tag 是 `Tag[7:0] + T8 + T9`，FM Base Header 直接提供 `Tag[13:0]`；
+- Requester ID 与 64-bit Address 的事务语义保留，但 Header 编码重新组织；
+- NFM 中固定占据 DW1 的 Byte Enable，不再必须永久占用 FM Header Base，需要时由相应 OHC 携带；
+- Prefix / overloaded header 一类的扩展信息，在 FM 中统一进入 OHC 体系。
 
-- `Fmt[2:0]` 与 `Type[4:0]` 位于 Byte 0；
-- `T9/T8` 分散在 DW0 中；
-- Requester ID 与 `Tag[7:0]` 位于 DW1；
-- Last DW BE / First DW BE 固定占据 DW1；
-- `Address[63:32]` 位于 DW2；
-- `Address[31:2]` 位于 DW3。
+所以：
 
-对 MWr64：
+> **NFM 和 FM 的 MWr64 虽然都可以是 4DW，但绝不是同一个 4DW Header format。**
 
-```text
-Fmt  = 011b
-Type = 00000b
-Byte0 = 0x60
-```
-
-### 5.2 FM：PCIe 6.0 Figure 2-39
-
-协议原图：**Figure 2-39 — Flit Mode Mem64 Request**。
-
-这张图最值得直接和 Figure 2-17 并排看：
-
-- 独立的 `Fmt` 消失；
-- Byte 0 直接变成 `Type[7:0]`；
-- DW0 重组为 `Type / TC / OHC / TS / Attr / Length`；
-- Requester ID 仍然存在；
-- Tag 直接扩展为 `Tag[13:0]`；
-- 64-bit Address 仍然位于后续 Header Base DW 中；
-- `AT[1:0]` 位于地址低位对应位置；
-- Byte Enable 不再像 NFM 那样永久占据固定 Base Header 位置，需要时由对应 OHC 携带。
-
-### 5.3 MWr64 的转换重点
-
-```text
-NFM
-Fmt=011 + Type=00000
-Tag[7:0] + T8 + T9
-Requester ID
-First/Last DW BE
-64-bit Address
-optional Prefix
-       │
-       │ semantic translation
-       ▼
-FM
-Type[7:0]=0x60
-Tag[13:0]
-Requester ID
-64-bit Address
-OHC when required
-```
-
-最关键的是：
-
-> **NFM 和 FM 的 MWr64 虽然 Header 都可以是 4DW，但它们不是同一个 4DW Header format。**
-
-`1:1 translation` 表示 MWr64 的事务语义不变，而不是 128-bit Header 原样复制。
+`1:1 translation` 表示事务语义保持一致，而不是 128-bit Header 原样复制。
 
 ---
 
 ## 6. CplD：更容易看出 OHC 为什么存在
 
-Completion with Data 在两种模式里的 Type 编码都保持 `0x4A`：
+CplD 在两种模式里的编码都保持 `0x4A`，但 Completion Header 内部的字段组织变化很明显。
 
-```text
-NFM: Fmt=010, Type=01010 -> 0x4A
-FM : Type[7:0]            -> 0x4A
-```
+下面的图左侧按 PCIe 5.0 Figure 2-38，右侧按 PCIe 6.0 Figure 2-76 的字段语义绘制。
 
-但 Header 内部字段重新组织得更加明显。
+![CplD NFM to FM](/assets/img/posts/pcie6-cpld-nfm-to-fm.svg)
 
-### 6.1 NFM：PCIe 5.0 Figure 2-38
+这里最值得注意的是：
 
-协议原图：**Figure 2-38 — Completion Header Format**。
+- `Type=0x4A` 本身可以保持不变；
+- Completer ID 仍然存在，但 Tag 扩展到 14 bit；
+- NFM 里的 Requester ID，在 FM Completion Base Header 中以 Destination BDF / BF 的形式重新组织；
+- Byte Count 和 Lower Address 重新排列；
+- Completion Status、Lower Address 的额外位以及部分 segment-related 信息，在需要时由 `OHC-A5` 携带。
 
-NFM Completion Header 中固定存在：
-
-- Completer ID；
-- Completion Status；
-- BCM；
-- Byte Count；
-- Requester ID；
-- Tag；
-- Lower Address。
-
-这些字段的具体 bit 位置直接以 Figure 2-38 为准。
-
-### 6.2 FM：PCIe 6.0 Figure 2-76
-
-协议原图：**Figure 2-76 — Completion Header Base Format - Flit Mode**。
-
-FM 中可以直接看到：
-
-- DW0 使用统一的 FM common Header Base 格式；
-- Completer ID 保留在 Header Base；
-- Tag 扩展到 14 bit；
-- Destination BDF / BF、Byte Count、Lower Address 被重新排列；
-- 部分条件性 Completion 信息不再永久占用 Base Header，而是按条件放入 `OHC-A5`。
-
-协议紧接 Figure 2-76 的规则也说明，OHC-A5 在某些 Completion 条件下是 required，例如 unsuccessful Completion 或某些 Lower Address 条件。
-
-### 6.3 为什么 CplD 特别适合理解 OHC
+这正好说明 OHC 的作用：
 
 ```text
 NFM Completion
-固定 Header 携带核心字段 + 一部分条件字段
+固定 Header 携带核心字段 + 条件字段
         │
         │ semantic regrouping
         ▼
@@ -281,7 +210,7 @@ Header Base = 高频核心字段
 OHC-A5      = 条件性 / 扩展 Completion 信息
 ```
 
-所以 OHC 不是简单“加长 Header”，而是在把 Header 信息模块化。
+所以 OHC 并不是简单“加长 Header”，而是在把 Header 信息模块化。
 
 ---
 
