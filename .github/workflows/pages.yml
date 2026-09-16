@@ -34,9 +34,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # submodules: true
-          # If using the 'assets' git submodule from Chirpy Starter, uncomment above
-          # (See: https://github.com/cotes2020/chirpy-starter/tree/main/assets)
 
       - name: Setup Pages
         id: pages
@@ -62,15 +59,27 @@ jobs:
             --ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/,/^http:\/\/c\.biancheng\.net/"
         working-directory: chirpy-src
 
-      - name: Sync Chirpy output for branch-based Pages
+      # The repository previously contained Hugo/Hextra sources and generated
+      # output in the repository root. Pages is deployed from the _site
+      # artifact below, so root-level generated files are not needed.
+      # Keep only the actual Chirpy source and repository maintenance files.
+      - name: Clean legacy site files
         if: github.event_name == 'push'
         run: |
-          cp -a _site/. .
-          touch .nojekyll
+          shopt -s dotglob nullglob
+          for path in *; do
+            case "$path" in
+              .git|.github|.gitignore|README.md|LICENSE|chirpy-src|tools|_site)
+                continue
+                ;;
+            esac
+            rm -rf -- "$path"
+          done
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore: publish Chirpy output [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: remove legacy Hugo and generated site files [skip ci]"
           git push
 
       - name: Upload site artifact
