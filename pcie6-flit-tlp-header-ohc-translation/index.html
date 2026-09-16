@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f7"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1b1e"><meta name="viewport" content="width=device-width, user-scalable=no initial-scale=1, shrink-to-fit=no, viewport-fit=cover" ><meta name="generator" content="Jekyll v4.4.1" /><meta property="og:title" content="PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换" /><meta property="og:locale" content="zh_CN" /><meta name="description" content="从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。" /><meta name="twitter:description" property="og:description" content="从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。" /><link rel="canonical" href="https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/" /><meta property="og:url" content="https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/" /><meta property="og:site_name" content="MaNan Notes" /><meta property="og:type" content="article" /><meta property="article:published_time" content="2026-09-16T14:40:00+08:00" /><meta property="article:modified_time" content="2026-09-16T14:40:00+08:00" /><meta property="og:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:card" content="summary_large_image" /><meta property="twitter:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:title" content="PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换" /><meta name="twitter:site" content="@twitter_username" /> <script type="application/ld+json"> {"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2026-09-16T14:40:00+08:00","datePublished":"2026-09-16T14:40:00+08:00","description":"从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。","headline":"PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换","mainEntityOfPage":{"@type":"WebPage","@id":"https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/"},"url":"https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/"}</script><title>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换 | MaNan Notes</title><link rel="icon" type="image/png" href="/assets/img/favicons/favicon-96x96.png" sizes="96x96"><link rel="icon" type="image/svg+xml" href="/assets/img/favicons/favicon.svg"><link rel="shortcut icon" href="/assets/img/favicons/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicons/apple-touch-icon.png"><link rel="manifest" href="/assets/img/favicons/site.webmanifest"><link rel="preconnect" href="https://fonts.googleapis.com" ><link rel="dns-prefetch" href="https://fonts.googleapis.com" ><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://fonts.gstatic.com" ><link rel="preconnect" href="https://cdn.jsdelivr.net" ><link rel="dns-prefetch" href="https://cdn.jsdelivr.net" ><link rel="stylesheet" href="/assets/css/jekyll-theme-chirpy.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400&family=Source+Sans+Pro:wght@400;600;700;900&display=swap"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3/dist/css/glightbox.min.css"> <script src="/assets/js/dist/theme.min.js"></script> <script defer src="https://cdn.jsdelivr.net/combine/npm/simple-jekyll-search@1/dest/simple-jekyll-search.min.js,npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.umd.min.js,npm/glightbox@3/dist/js/glightbox.min.js,npm/clipboard@2/dist/clipboard.min.js,npm/dayjs@1/dayjs.min.js,npm/dayjs@1/locale/zh.js,npm/dayjs@1/plugin/relativeTime.js,npm/dayjs@1/plugin/localizedFormat.js,npm/tocbot@4/dist/tocbot.min.js"></script> <script defer src="/assets/js/dist/post.min.js"></script> <script defer src="/app.min.js?baseurl=&register=true" ></script><body><aside aria-label="Sidebar" id="sidebar" class="d-flex flex-column align-items-end"><header class="profile-wrapper"> <a href="/" id="avatar" class="rounded-circle"><img src="/assets/img/avatar.jpg" width="112" height="112" alt="avatar" onerror="this.style.display='none'"></a> <a class="site-title d-block" href="/">MaNan Notes</a><p class="site-subtitle fst-italic mb-0">Digital IC · PCIe · Engineering</p></header><nav class="flex-column flex-grow-1 w-100 ps-0"><ul class="nav"><li class="nav-item"> <a href="/" class="nav-link"> <i class="fa-fw fas fa-home"></i> <span>首页</span> </a><li class="nav-item"> <a href="/categories/" class="nav-link"> <i class="fa-fw fas fa-stream"></i> <span>分类</span> </a><li class="nav-item"> <a href="/tags/" class="nav-link"> <i class="fa-fw fas fa-tags"></i> <span>标签</span> </a><li class="nav-item"> <a href="/archives/" class="nav-link"> <i class="fa-fw fas fa-archive"></i> <span>归档</span> </a><li class="nav-item"> <a href="/tools/" class="nav-link"> <i class="fa-fw fas fa-terminal"></i> <span>工具</span> </a><li class="nav-item"> <a href="/about/" class="nav-link"> <i class="fa-fw fas fa-info-circle"></i> <span>关于</span> </a></ul></nav><div class="sidebar-bottom d-flex flex-wrap align-items-center w-100"><div class="btn-group dropup"> <button type="button" class="btn btn-link nav-link" aria-label="Switch Mode" id="mode-toggle" data-bs-toggle="dropdown" ><i class="fa-regular fa-sun" data-theme-mode="light"></i><i class="fa-regular fa-moon" data-theme-mode="dark"></i><i class="fa-solid fa-display" data-theme-mode="system"></i></button><ul class="dropdown-menu rounded-3 mb-1 p-1"><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="light"><i class="fa-regular fa-sun" data-theme-mode="light"></i>浅色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="dark"><i class="fa-regular fa-moon" data-theme-mode="dark"></i>深色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="system"><i class="fa-solid fa-display" data-theme-mode="system"></i>跟随系统</button></ul></div><span class="icon-border"></span> <a href="https://github.com/MaNan93" aria-label="github" target="_blank" rel="noopener noreferrer" > <i class="fab fa-github"></i> </a> <a href="https://twitter.com/twitter_username" aria-label="twitter" target="_blank" rel="noopener noreferrer" > <i class="fa-brands fa-x-twitter"></i> </a> <a href="/feed.xml" aria-label="rss" > <i class="fas fa-rss"></i> </a></div></aside><div id="main-wrapper" class="d-flex justify-content-center"><div class="container d-flex flex-column px-xxl-5"><header id="topbar-wrapper" class="flex-shrink-0" aria-label="Top Bar"><div id="topbar" class="d-flex align-items-center justify-content-between px-lg-3 h-100" ><nav id="breadcrumb" aria-label="Breadcrumb"> <span> <a href="/">首页</a> </span> <span>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</span></nav><button type="button" id="sidebar-trigger" class="btn btn-link" aria-label="Sidebar"> <i class="fas fa-bars fa-fw"></i> </button><div id="topbar-title"> 文章</div><button type="button" id="search-trigger" class="btn btn-link" aria-label="Search"> <i class="fas fa-search fa-fw"></i> </button> <search id="search" class="align-items-center ms-3 ms-lg-0"> <i class="fas fa-search fa-fw"></i> <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="搜索..." > </search> <button type="button" class="btn btn-link text-decoration-none" id="search-cancel">取消</button></div></header><div class="row flex-grow-1"><main aria-label="Main Content" class="col-12 col-lg-11 col-xl-9 px-md-4"><article class="px-1" data-toc="true"><header><h1 data-toc-skip>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</h1><p class="post-desc fw-light mb-4">从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。</p><div class="post-meta text-muted"> <span> 发表于 <time data-ts="1789540800" data-df="YYYY/MM/DD" data-bs-toggle="tooltip" data-bs-placement="bottom" > 2026/09/16 </time> </span><div class="d-flex justify-content-between"> <span> 作者 <em> <a href="https://github.com/MaNan93">MaNan</a> </em> </span><div> <span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="2774 字" > <em>15 分钟</em>阅读</span></div></div></div></header><div id="toc-bar" class="d-flex align-items-center justify-content-between invisible"> <span class="label text-truncate">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</span> <button type="button" class="toc-trigger btn me-1"> <i class="fa-solid fa-list-ul fa-fw"></i> </button></div><button id="toc-solo-trigger" type="button" class="toc-trigger btn btn-outline-secondary btn-sm"> <span class="label ps-2 pe-1">文章内容</span> <i class="fa-solid fa-angle-right fa-fw"></i> </button> <dialog id="toc-popup" class="p-0"><div class="header d-flex flex-row align-items-center justify-content-between"><div class="label text-truncate py-2 ms-4">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</div><button id="toc-popup-close" type="button" class="btn-close btn-sm mx-3" aria-label="Close"></button></div><div id="toc-popup-content" class="px-4 py-3 pb-4"></div></dialog><div class="content"><p>PCIe 6.0 引入 Flit Mode 后，最容易产生的误解之一，是把 <strong>256B Flit</strong> 当成对传统 128b/130b Block 的替代。</p><p>实际上两者不在同一层次：</p><ul><li><strong>128b/130b</strong> 是 PHY encoding；<li><strong>Flit Mode</strong> 是一种 Data Stream Mode；<li><strong>256B Flit</strong> 是 Flit Mode 下固定长度的数据组织单元；<li><strong>TLP</strong> 仍然存在，但其 Header 编码方式发生了明显变化。</ul><p>本文重点讨论 PCIe 6.0 Transaction Layer 中最重要的一组变化：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+<!doctype html><html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f7"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1b1e"><meta name="viewport" content="width=device-width, user-scalable=no initial-scale=1, shrink-to-fit=no, viewport-fit=cover" ><meta name="generator" content="Jekyll v4.4.1" /><meta property="og:title" content="PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换" /><meta property="og:locale" content="zh_CN" /><meta name="description" content="从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。" /><meta name="twitter:description" property="og:description" content="从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。" /><link rel="canonical" href="https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/" /><meta property="og:url" content="https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/" /><meta property="og:site_name" content="MaNan Notes" /><meta property="og:type" content="article" /><meta property="article:published_time" content="2026-09-16T14:40:00+08:00" /><meta property="article:modified_time" content="2026-09-16T15:44:31+08:00" /><meta property="og:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:card" content="summary_large_image" /><meta property="twitter:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:title" content="PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换" /><meta name="twitter:site" content="@twitter_username" /> <script type="application/ld+json"> {"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2026-09-16T15:44:31+08:00","datePublished":"2026-09-16T14:40:00+08:00","description":"从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。","headline":"PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换","mainEntityOfPage":{"@type":"WebPage","@id":"https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/"},"url":"https://manan93.github.io/pcie6-flit-tlp-header-ohc-translation/"}</script><title>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换 | MaNan Notes</title><link rel="icon" type="image/png" href="/assets/img/favicons/favicon-96x96.png" sizes="96x96"><link rel="icon" type="image/svg+xml" href="/assets/img/favicons/favicon.svg"><link rel="shortcut icon" href="/assets/img/favicons/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicons/apple-touch-icon.png"><link rel="manifest" href="/assets/img/favicons/site.webmanifest"><link rel="preconnect" href="https://fonts.googleapis.com" ><link rel="dns-prefetch" href="https://fonts.googleapis.com" ><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://fonts.gstatic.com" ><link rel="preconnect" href="https://cdn.jsdelivr.net" ><link rel="dns-prefetch" href="https://cdn.jsdelivr.net" ><link rel="stylesheet" href="/assets/css/jekyll-theme-chirpy.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400&family=Source+Sans+Pro:wght@400;600;700;900&display=swap"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3/dist/css/glightbox.min.css"> <script src="/assets/js/dist/theme.min.js"></script> <script defer src="https://cdn.jsdelivr.net/combine/npm/simple-jekyll-search@1/dest/simple-jekyll-search.min.js,npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.umd.min.js,npm/glightbox@3/dist/js/glightbox.min.js,npm/clipboard@2/dist/clipboard.min.js,npm/dayjs@1/dayjs.min.js,npm/dayjs@1/locale/zh.js,npm/dayjs@1/plugin/relativeTime.js,npm/dayjs@1/plugin/localizedFormat.js,npm/tocbot@4/dist/tocbot.min.js"></script> <script defer src="/assets/js/dist/post.min.js"></script> <script defer src="/app.min.js?baseurl=&register=true" ></script><body><aside aria-label="Sidebar" id="sidebar" class="d-flex flex-column align-items-end"><header class="profile-wrapper"> <a href="/" id="avatar" class="rounded-circle"><img src="/assets/img/avatar.jpg" width="112" height="112" alt="avatar" onerror="this.style.display='none'"></a> <a class="site-title d-block" href="/">MaNan Notes</a><p class="site-subtitle fst-italic mb-0">Digital IC · PCIe · Engineering</p></header><nav class="flex-column flex-grow-1 w-100 ps-0"><ul class="nav"><li class="nav-item"> <a href="/" class="nav-link"> <i class="fa-fw fas fa-home"></i> <span>首页</span> </a><li class="nav-item"> <a href="/categories/" class="nav-link"> <i class="fa-fw fas fa-stream"></i> <span>分类</span> </a><li class="nav-item"> <a href="/tags/" class="nav-link"> <i class="fa-fw fas fa-tags"></i> <span>标签</span> </a><li class="nav-item"> <a href="/archives/" class="nav-link"> <i class="fa-fw fas fa-archive"></i> <span>归档</span> </a><li class="nav-item"> <a href="/tools/" class="nav-link"> <i class="fa-fw fas fa-terminal"></i> <span>工具</span> </a><li class="nav-item"> <a href="/about/" class="nav-link"> <i class="fa-fw fas fa-info-circle"></i> <span>关于</span> </a></ul></nav><div class="sidebar-bottom d-flex flex-wrap align-items-center w-100"><div class="btn-group dropup"> <button type="button" class="btn btn-link nav-link" aria-label="Switch Mode" id="mode-toggle" data-bs-toggle="dropdown" ><i class="fa-regular fa-sun" data-theme-mode="light"></i><i class="fa-regular fa-moon" data-theme-mode="dark"></i><i class="fa-solid fa-display" data-theme-mode="system"></i></button><ul class="dropdown-menu rounded-3 mb-1 p-1"><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="light"><i class="fa-regular fa-sun" data-theme-mode="light"></i>浅色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="dark"><i class="fa-regular fa-moon" data-theme-mode="dark"></i>深色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="system"><i class="fa-solid fa-display" data-theme-mode="system"></i>跟随系统</button></ul></div><span class="icon-border"></span> <a href="https://github.com/MaNan93" aria-label="github" target="_blank" rel="noopener noreferrer" > <i class="fab fa-github"></i> </a> <a href="https://twitter.com/twitter_username" aria-label="twitter" target="_blank" rel="noopener noreferrer" > <i class="fa-brands fa-x-twitter"></i> </a> <a href="/feed.xml" aria-label="rss" > <i class="fas fa-rss"></i> </a></div></aside><div id="main-wrapper" class="d-flex justify-content-center"><div class="container d-flex flex-column px-xxl-5"><header id="topbar-wrapper" class="flex-shrink-0" aria-label="Top Bar"><div id="topbar" class="d-flex align-items-center justify-content-between px-lg-3 h-100" ><nav id="breadcrumb" aria-label="Breadcrumb"> <span> <a href="/">首页</a> </span> <span>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</span></nav><button type="button" id="sidebar-trigger" class="btn btn-link" aria-label="Sidebar"> <i class="fas fa-bars fa-fw"></i> </button><div id="topbar-title"> 文章</div><button type="button" id="search-trigger" class="btn btn-link" aria-label="Search"> <i class="fas fa-search fa-fw"></i> </button> <search id="search" class="align-items-center ms-3 ms-lg-0"> <i class="fas fa-search fa-fw"></i> <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="搜索..." > </search> <button type="button" class="btn btn-link text-decoration-none" id="search-cancel">取消</button></div></header><div class="row flex-grow-1"><main aria-label="Main Content" class="col-12 col-lg-11 col-xl-9 px-md-4"><article class="px-1" data-toc="true"><header><h1 data-toc-skip>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</h1><p class="post-desc fw-light mb-4">从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。</p><div class="post-meta text-muted"> <span> 发表于 <time data-ts="1789540800" data-df="YYYY/MM/DD" data-bs-toggle="tooltip" data-bs-placement="bottom" > 2026/09/16 </time> </span> <span> 更新于 <time data-ts="1789544671" data-df="YYYY/MM/DD" data-bs-toggle="tooltip" data-bs-placement="bottom" > 2026/09/16 </time> </span><div class="d-flex justify-content-between"> <span> 作者 <em> <a href="https://github.com/MaNan93">MaNan</a> </em> </span><div> <span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="2100 字" > <em>11 分钟</em>阅读</span></div></div></div></header><div id="toc-bar" class="d-flex align-items-center justify-content-between invisible"> <span class="label text-truncate">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</span> <button type="button" class="toc-trigger btn me-1"> <i class="fa-solid fa-list-ul fa-fw"></i> </button></div><button id="toc-solo-trigger" type="button" class="toc-trigger btn btn-outline-secondary btn-sm"> <span class="label ps-2 pe-1">文章内容</span> <i class="fa-solid fa-angle-right fa-fw"></i> </button> <dialog id="toc-popup" class="p-0"><div class="header d-flex flex-row align-items-center justify-content-between"><div class="label text-truncate py-2 ms-4">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</div><button id="toc-popup-close" type="button" class="btn-close btn-sm mx-3" aria-label="Close"></button></div><div id="toc-popup-content" class="px-4 py-3 pb-4"></div></dialog><div class="content"><p>PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 <strong>TLP Header 的组织方式</strong>。</p><p>最重要的主线是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
@@ -11,42 +11,20 @@
 11
 12
 13
-</pre><td class="rouge-code"><pre>Non-Flit Mode TLP
-    Fmt + Type
-    3DW/4DW Header
-    optional Prefix
-          │
-          │  semantic translation
-          ▼
-Flit Mode TLP
-    Type[7:0]
-    Header Base
-    + OHC
-    + Payload
-    + TLP Trailer
-</pre></table></code></div></div><hr /><h2 id="1-flit-mode-tlp-的基本组成"><span class="me-2">1. Flit Mode TLP 的基本组成</span><a href="#1-flit-mode-tlp-的基本组成" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>PCIe 6.0 对 Flit Mode TLP 的组织可以概括为：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-</pre><td class="rouge-code"><pre>Flit Mode TLP
-
-+----------------------------+
-| Header Base                |
-+----------------------------+
-| OHC                        |  optional，0~7 DW
-+----------------------------+
-| Payload                    |  0~1024 DW
-+----------------------------+
-| TLP Trailer                |  optional
-+----------------------------+
-</pre></table></code></div></div><p>因此可以写成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Non-Flit Mode
+Fmt[2:0] + Type[4:0]
+3DW / 4DW Header
+optional TLP Prefix
+        │
+        │ semantic translation
+        ▼
+Flit Mode
+Type[7:0]
+Header Base
++ OHC
++ Payload
++ TLP Trailer
+</pre></table></code></div></div><p>本文重点不是只看编码表，而是把 <strong>NFM TLP 到 FM TLP 的字段重组</strong>画出来。这样可以直接看到：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移出，以及 OHC 为什么会出现。</p><hr /><h2 id="1-flit-mode-tlp-的组成"><span class="me-2">1. Flit Mode TLP 的组成</span><a href="#1-flit-mode-tlp-的组成" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>可以把一个 Flit Mode TLP 写成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
@@ -58,37 +36,19 @@ Header Base Size
 + OHC Size
 + Payload Size
 + TLP Trailer Size
-</pre></table></code></div></div><p>其中：</p><ul><li><strong>Header Base Size</strong>：由 <code class="language-plaintext highlighter-rouge">Type[7:0]</code> 决定；<li><strong>OHC Size</strong>：可以为 0；<li><strong>Payload Size</strong>：取决于 TLP 类型及 Length；<li><strong>TLP Trailer</strong>：由 Trailer 相关指示决定是否存在。</ul><p>一个 TLP 并不等于一个 Flit。TLP 会继续作为 byte stream 被 packing 到 256B Flit 中：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-</pre><td class="rouge-code"><pre>TLP A | TLP B | TLP C(partial)
-                │
-                ▼
-           256B Flit N
-
-TLP C(rest) | TLP D | ...
-                │
-                ▼
-           256B Flit N+1
-</pre></table></code></div></div><p>因此：</p><ul><li>一个 Flit 可以包含多个 TLP；<li>一个 TLP 也可以跨多个 Flit。</ul><hr /><h2 id="2-nfm-的-tlp-headerfmt--type"><span class="me-2">2. NFM 的 TLP Header：Fmt + Type</span><a href="#2-nfm-的-tlp-headerfmt--type" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>PCIe 5.x 及 PCIe 6.0 的 Non-Flit Mode 延续传统 TLP 编码：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></table></code></div></div><p>其中：</p><ul><li><strong>Header Base Size</strong>：由 <code class="language-plaintext highlighter-rouge">Type[7:0]</code> 决定；<li><strong>OHC Size</strong>：可以为 0；<li><strong>Payload Size</strong>：由 TLP 类型和 <code class="language-plaintext highlighter-rouge">Length</code> 决定；<li><strong>TLP Trailer</strong>：按 <code class="language-plaintext highlighter-rouge">TS[2:0]</code> 等规则决定是否存在及长度。</ul><p>需要注意：<strong>TLP size 与 256B Flit size 是两个概念。</strong></p><p>一个 Flit 可以包含多个 TLP，一个 TLP 也可以跨多个 Flit。</p><hr /><h2 id="2-nfmfmt--type"><span class="me-2">2. NFM：Fmt + Type</span><a href="#2-nfmfmt--type" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>PCIe 5.x 的传统 Non-Flit Mode 使用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 </pre><td class="rouge-code"><pre>Fmt[2:0] + Type[4:0]
-</pre></table></code></div></div><p><code class="language-plaintext highlighter-rouge">Fmt</code> 主要描述 Header 长度及是否带 Data：</p><div class="table-wrapper"><table><thead><tr><th>Fmt<th>含义<tbody><tr><td><code class="language-plaintext highlighter-rouge">000b</code><td>3DW Header，No Data<tr><td><code class="language-plaintext highlighter-rouge">001b</code><td>4DW Header，No Data<tr><td><code class="language-plaintext highlighter-rouge">010b</code><td>3DW Header，With Data<tr><td><code class="language-plaintext highlighter-rouge">011b</code><td>4DW Header，With Data<tr><td><code class="language-plaintext highlighter-rouge">100b</code><td>TLP Prefix</table></div><p>例如 Memory Request：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></table></code></div></div><p><code class="language-plaintext highlighter-rouge">Fmt</code> 同时告诉 Receiver Header 长度以及是否带 Data：</p><div class="table-wrapper"><table><thead><tr><th>Fmt<th>含义<tbody><tr><td><code class="language-plaintext highlighter-rouge">000b</code><td>3DW Header，No Data<tr><td><code class="language-plaintext highlighter-rouge">001b</code><td>4DW Header，No Data<tr><td><code class="language-plaintext highlighter-rouge">010b</code><td>3DW Header，With Data<tr><td><code class="language-plaintext highlighter-rouge">011b</code><td>4DW Header，With Data<tr><td><code class="language-plaintext highlighter-rouge">100b</code><td>TLP Prefix</table></div><p>例如 Memory Request：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
-</pre><td class="rouge-code"><pre>MRd32 : Fmt=000 Type=00000
-MRd64 : Fmt=001 Type=00000
-MWr32 : Fmt=010 Type=00000
-MWr64 : Fmt=011 Type=00000
-</pre></table></code></div></div><p>因此 NFM 中必须把 <code class="language-plaintext highlighter-rouge">Fmt + Type</code> 放在一起解析，才能完整知道这是什么 TLP。</p><hr /><h2 id="3-fm-改成-fully-decoded-type70"><span class="me-2">3. FM 改成 fully-decoded Type[7:0]</span><a href="#3-fm-改成-fully-decoded-type70" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>到了 Flit Mode，PCIe 6.0 不再使用独立的 <code class="language-plaintext highlighter-rouge">Fmt[2:0] + Type[4:0]</code> 来决定 packet 类型，而是直接定义：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>MRd32 : 000_00000 = 0x00
+MRd64 : 001_00000 = 0x20
+MWr32 : 010_00000 = 0x40
+MWr64 : 011_00000 = 0x60
+</pre></table></code></div></div><p>因此 NFM parser 必须联合解释 <code class="language-plaintext highlighter-rouge">Fmt + Type</code>。</p><hr /><h2 id="3-fmfully-decoded-type70"><span class="me-2">3. FM：fully-decoded Type[7:0]</span><a href="#3-fmfully-decoded-type70" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Flit Mode 取消独立的 <code class="language-plaintext highlighter-rouge">Fmt</code> 字段，改用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 </pre><td class="rouge-code"><pre>Type[7:0]
-</pre></table></code></div></div><p>并要求 Receiver 对这个字段进行完整解码。</p><p>可以把变化理解成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></table></code></div></div><p><code class="language-plaintext highlighter-rouge">Type[7:0]</code> 直接决定：</p><ul><li>transaction type；<li>Header Base format；<li>Header Base size；<li>是否带 Payload 等基本属性。</ul><p>很多传统 TLP 的编码仍然保留了历史连续性。例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
@@ -96,107 +56,73 @@ MWr64 : Fmt=011 Type=00000
 6
 7
 8
-9
-10
-</pre><td class="rouge-code"><pre>NFM
-+---------+---------+
-| Fmt[2:0]|Type[4:0]|
-+---------+---------+
-          │
-          ▼
-FM
-+-------------------+
-|     Type[7:0]     |
-+-------------------+
-</pre></table></code></div></div><p>绝大多数传统 TLP 的 FM Type 编码都能看到明显的历史连续性：原来的 <code class="language-plaintext highlighter-rouge">Fmt + Type</code> 组合值基本被保留下来。</p><p>例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>IOWr : NFM 010_00010 = 0x42
+       FM  Type       = 0x42
+
+CplD : NFM 010_01010 = 0x4A
+       FM  Type       = 0x4A
+
+MWr64: NFM 011_00000 = 0x60
+       FM  Type       = 0x60
+</pre></table></code></div></div><p>但并非所有类型都能原值保留。最典型的是 <code class="language-plaintext highlighter-rouge">MRd32</code>：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>NFM MRd32 = 0x00
+FM  0x00  = NOP
+FM  MRd32 = 0x03
+</pre></table></code></div></div><p>因此 PCIe 6.0 Table 2-5 对 MRd32 明确要求修改 Type field value。</p><hr /><h2 id="4-常用-nfm--fm-type-对照"><span class="me-2">4. 常用 NFM ↔ FM Type 对照</span><a href="#4-常用-nfm--fm-type-对照" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><div class="table-wrapper"><table><thead><tr><th>Transaction<th style="text-align: right">NFM Fmt<th style="text-align: right">NFM Type<th style="text-align: right">NFM Byte0<th style="text-align: right">FM Type[7:0]<th>Translation<tbody><tr><td>MRd 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x00</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x03</code><td>Type 改编码<tr><td>MRd 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x20</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x20</code><td>1:1<tr><td>MRdLk 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x01</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x01</code><td>1:1<tr><td>MRdLk 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x21</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x21</code><td>1:1<tr><td>IORd<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x02</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x02</code><td>1:1<tr><td>IOWr<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x42</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x42</code><td>1:1<tr><td>CfgRd0<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x04</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x04</code><td>1:1<tr><td>CfgWr0<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x44</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x44</code><td>1:1<tr><td>CfgRd1<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x05</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x05</code><td>1:1<tr><td>CfgWr1<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x45</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x45</code><td>1:1<tr><td>Cpl<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0A</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0A</code><td>1:1<tr><td>CplD<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4A</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4A</code><td>1:1<tr><td>CplLk<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0B</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0B</code><td>1:1<tr><td>CplDLk<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4B</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4B</code><td>1:1<tr><td>FetchAdd 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4C</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4C</code><td>1:1<tr><td>FetchAdd 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6C</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6C</code><td>1:1<tr><td>Swap 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4D</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4D</code><td>1:1<tr><td>Swap 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6D</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6D</code><td>1:1<tr><td>CAS 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01110</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4E</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4E</code><td>1:1<tr><td>CAS 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01110</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6E</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6E</code><td>1:1</table></div><p>这里的 <code class="language-plaintext highlighter-rouge">Translation Rule = 1:1</code> 指 <strong>transaction meaning / behavior 保持一致</strong>，不是说 Header bits 原样 passthrough。</p><hr /><h2 id="5-mwr64把-nfm-和-fm-放在-bit-位置上比较"><span class="me-2">5. MWr64：把 NFM 和 FM 放在 bit 位置上比较</span><a href="#5-mwr64把-nfm-和-fm-放在-bit-位置上比较" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>这一组最适合观察 Header 的重组。</p><p>PCIe 5.0 Figure 2-17 中，64-bit Address Memory Request 的 NFM Header 是 4DW。MWr64 使用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>Fmt  = 011b
+Type = 00000b
+Byte0 = 0x60
+</pre></table></code></div></div><p>PCIe 6.0 Figure 2-39 中，Flit Mode Mem64 Request 同样是 4DW Header Base，但字段布局已经重新定义。</p><h3 id="51-nfm-mwr64--pcie-50-figure-2-17"><span class="me-2">5.1 NFM MWr64 — PCIe 5.0 Figure 2-17</span><a href="#51-nfm-mwr64--pcie-50-figure-2-17" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW / bit<th>31:29<th>28:24<th>23<th>22:20<th>19<th>18<th>17<th>16<th>15<th>14<th>13:12<th>11:10<th>9:0<tbody><tr><th>DW0<td>Fmt<td>Type<td>T9<td>TC<td>T8<td>Attr<td>LN<td>TH<td>TD<td>EP<td>Attr<td>AT<td>Length</table></div></div><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15:8<th>7:4<th>3:0<tbody><tr><th>DW1<td>Requester ID<td>Tag[7:0]<td>Last DW BE<td>First DW BE<tr><th>DW2<td colspan="4">Address[63:32]<tr><th>DW3<td colspan="3">Address[31:2]<td>PH / low aligned bits</table></div></div><blockquote><p>NFM 中扩展 Tag 的高位通过 <code class="language-plaintext highlighter-rouge">T9/T8</code> 参与形成 Tag；图中固定 Header 还直接保留 Last/First DW Byte Enable。</p></blockquote><h3 id="52-fm-mwr64--pcie-60-figure-2-39"><span class="me-2">5.2 FM MWr64 — PCIe 6.0 Figure 2-39</span><a href="#52-fm-mwr64--pcie-60-figure-2-39" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW / bit<th>31:24<th>23:21<th>20:16<th>15:13<th>12:10<th>9:0<tbody><tr><th>DW0<td>Type[7:0]<td>TC[2:0]<td>OHC[4:0]<td>TS[2:0]<td>Attr[2:0]<td>Length[9:0]</table></div></div><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15<th>14<th>13:0<tbody><tr><th>DW1<td>Requester ID[15:0]<td>EP<td>R<td>Tag[13:0]<tr><th>DW2<td colspan="4">Address[63:32]<tr><th>DW3<td colspan="3">Address[31:2]<td>AT[1:0]</table></div></div><h3 id="53-字段到底怎么变了"><span class="me-2">5.3 字段到底怎么变了</span><a href="#53-字段到底怎么变了" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>把两边直接对应起来：</p><div class="table-wrapper"><table><thead><tr><th>语义<th>NFM MWr64<th>FM MWr64<tbody><tr><td>TLP 类型<td><code class="language-plaintext highlighter-rouge">Fmt=011 + Type=00000</code><td><code class="language-plaintext highlighter-rouge">Type[7:0]=0x60</code><tr><td>Header 长度 / with-data 信息<td><code class="language-plaintext highlighter-rouge">Fmt</code> 显式编码<td>由 <code class="language-plaintext highlighter-rouge">Type[7:0]</code> 对应的 FM type 定义<tr><td>Requester ID<td>Header 内<td>Header Base 内<tr><td>Tag<td><code class="language-plaintext highlighter-rouge">Tag[7:0] + T8 + T9</code>，最多 10-bit<td>Base Header 直接 <code class="language-plaintext highlighter-rouge">Tag[13:0]</code><tr><td>Byte Enable<td>固定占用 DW1<td>默认值可隐含；需要特殊 BE 时由 OHC（例如 OHC-A1）携带<tr><td>Address<td>DW2/DW3<td>仍在 DW2/DW3，但 Header Base 重新编码<tr><td>AT<td>NFM common/request header 中<td>FM DW3 <code class="language-plaintext highlighter-rouge">[1:0]</code><tr><td>Prefix / 扩展信息<td>TLP Prefix / header overload<td>OHC</table></div><p>因此 MWr64 是一个很好的例子：<strong>表面上两边都是 4DW，但绝不是同一个 4DW Header format。</strong></p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
 5
 6
 7
-8
-9
-10
-</pre><td class="rouge-code"><pre>IORd
-
-NFM:
-Fmt  = 000
-Type = 00010
-
-000_00010 = 0x02
+</pre><td class="rouge-code"><pre>NFM 4DW Header
+     │ semantic decode
+     ▼
+Memory Write + 64b Address + Payload
+     │ regenerate
+     ▼
+FM 4DW Header Base + optional OHC
+</pre></table></code></div></div><hr /><h2 id="6-cpld更容易看出-ohc-为什么存在"><span class="me-2">6. CplD：更容易看出 OHC 为什么存在</span><a href="#6-cpld更容易看出-ohc-为什么存在" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Completion with Data 的编码在两种模式中都保持 <code class="language-plaintext highlighter-rouge">0x4A</code>：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>NFM: Fmt=010, Type=01010 -&gt; 0x4A
+FM : Type[7:0]            -&gt; 0x4A
+</pre></table></code></div></div><p>但 Header 字段组织发生了明显变化。</p><h3 id="61-nfm-completion--pcie-50-figure-2-38"><span class="me-2">6.1 NFM Completion — PCIe 5.0 Figure 2-38</span><a href="#61-nfm-completion--pcie-50-figure-2-38" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15:13<th>12<th>11:0<tbody><tr><th>DW1<td>Completer ID<td>Completion Status<td>BCM<td>Byte Count</table></div></div><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15:8<th>7<th>6:0<tbody><tr><th>DW2<td>Requester ID<td>Tag[7:0]<td>R<td>Lower Address[6:0]</table></div></div><p>NFM Completion Header 固定包含：</p><ul><li>Completer ID；<li>Completion Status；<li>BCM；<li>Byte Count；<li>Requester ID；<li>Tag；<li>Lower Address。</ul><h3 id="62-fm-completion-header-base--pcie-60-figure-2-76"><span class="me-2">6.2 FM Completion Header Base — PCIe 6.0 Figure 2-76</span><a href="#62-fm-completion-header-base--pcie-60-figure-2-76" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW / bit<th>31:24<th>23:21<th>20:16<th>15:13<th>12:10<th>9:0<tbody><tr><th>DW0<td>Type<td>TC<td>OHC<td>TS<td>Attr<td>Length</table></div></div><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15<th>14<th>13:0<tbody><tr><th>DW1<td>Completer ID<td>EP<td>LA[6]<td>Tag[13:0]</table></div></div><div class="table-responsive"><div class="table-wrapper"><table class="table table-bordered text-center align-middle"><thead><tr><th>DW<th>31:16<th>15:12<th>11:0<tbody><tr><th>DW2<td>Destination BDF / BF (ARI)<td>LA[5:2]<td>Byte Count[11:0]</table></div></div><p>这里最值得注意的是：FM Completion Header Base 不再简单照搬 NFM Completion Header。</p><p>例如一些 Completion 相关的附加信息按条件进入 <strong>OHC-A5</strong>。这样 Base Header 保留高频、核心字段，低频或扩展语义按需出现。</p><p>所以 CplD 更能说明：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+</pre><td class="rouge-code"><pre>NFM:
+固定 Header 承载更多字段
 
 FM:
-Type[7:0] = 0x02
-</pre></table></code></div></div><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+Header Base = core information
+OHC         = conditional / orthogonal information
+</pre></table></code></div></div><p>这就是 OHC 设计最直观的价值之一。</p><hr /><h2 id="7-header-base-不是按3dw4dw定义类型"><span class="me-2">7. Header Base 不是按“3DW/4DW”定义类型</span><a href="#7-header-base-不是按3dw4dw定义类型" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Flit Mode 中，真正决定格式的是 <code class="language-plaintext highlighter-rouge">Type[7:0]</code>。</p><p>因此更准确的关系是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
 5
 6
-7
-8
-9
-10
-</pre><td class="rouge-code"><pre>IOWr
-
-NFM:
-Fmt  = 010
-Type = 00010
-
-010_00010 = 0x42
-
-FM:
-Type[7:0] = 0x42
-</pre></table></code></div></div><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-</pre><td class="rouge-code"><pre>CplD
-
-NFM:
-Fmt  = 010
-Type = 01010
-
-010_01010 = 0x4A
-
-FM:
-Type[7:0] = 0x4A
-</pre></table></code></div></div><p>因此 FM 并不是毫无关联地重新设计 Type 数值，而是把原本由 <code class="language-plaintext highlighter-rouge">Fmt + Type</code> 联合表达的信息，展开到了一个 fully-decoded 的 8-bit Type 空间中。</p><hr /><h2 id="4-一个特殊例子mrd32-为什么变成-0x03"><span class="me-2">4. 一个特殊例子：MRd32 为什么变成 0x03</span><a href="#4-一个特殊例子mrd32-为什么变成-0x03" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>传统 NFM 中：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-</pre><td class="rouge-code"><pre>MRd32
-Fmt  = 000
-Type = 00000
-
-=&gt; 0x00
-</pre></table></code></div></div><p>但 PCIe 6.0 Flit Mode 中：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-</pre><td class="rouge-code"><pre>Type 0x00 = NOP
-</pre></table></code></div></div><p>因此 <code class="language-plaintext highlighter-rouge">0x00</code> 已经不能继续表示 MRd32。</p><p>PCIe 6.0 将 32-bit Address Memory Read Request 重新编码为：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-</pre><td class="rouge-code"><pre>MRd32 → Type = 0x03
-</pre></table></code></div></div><p>这也是 Table 2-5 中一个非常典型的 Translation Rule：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-</pre><td class="rouge-code"><pre>Requires change of Type field value
-</pre></table></code></div></div><p>所以 MRd32 是理解 NFM/FM translation 很好的切入点：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-</pre><td class="rouge-code"><pre>NFM MRd32 : 0x00
-      │
-      │ Type translation
-      ▼
-FM  MRd32 : 0x03
-</pre></table></code></div></div><hr /><h2 id="5-常用-nfm--fm-type-对照"><span class="me-2">5. 常用 NFM ↔ FM Type 对照</span><a href="#5-常用-nfm--fm-type-对照" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>下面按“事务语义”整理常用类型。这里的 NFM Byte0 指把 <code class="language-plaintext highlighter-rouge">Fmt[2:0]</code> 与 <code class="language-plaintext highlighter-rouge">Type[4:0]</code> 拼成 8-bit 后的值。</p><div class="table-wrapper"><table><thead><tr><th>Transaction<th style="text-align: right">NFM Fmt<th style="text-align: right">NFM Type<th style="text-align: right">NFM Byte0<th style="text-align: right">FM Type[7:0]<th>Translation<tbody><tr><td>MRd 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x00</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x03</code><td>Type 改编码<tr><td>MRd 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x20</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x20</code><td>1:1<tr><td>MRdLk 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x01</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x01</code><td>1:1<tr><td>MRdLk 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00001</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x21</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x21</code><td>1:1<tr><td>IORd<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x02</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x02</code><td>1:1<tr><td>IOWr<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x42</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x42</code><td>1:1<tr><td>CfgRd0<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x04</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x04</code><td>1:1<tr><td>CfgWr0<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x44</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x44</code><td>1:1<tr><td>CfgRd1<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x05</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x05</code><td>1:1<tr><td>CfgWr1<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">00101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x45</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x45</code><td>1:1<tr><td>Cpl<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0A</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0A</code><td>1:1<tr><td>CplD<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4A</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4A</code><td>1:1<tr><td>CplLk<td style="text-align: right"><code class="language-plaintext highlighter-rouge">000</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0B</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x0B</code><td>1:1<tr><td>CplDLk<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4B</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4B</code><td>1:1<tr><td>FetchAdd 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4C</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4C</code><td>1:1<tr><td>FetchAdd 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01100</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6C</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6C</code><td>1:1<tr><td>Swap 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4D</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4D</code><td>1:1<tr><td>Swap 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01101</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6D</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6D</code><td>1:1<tr><td>CAS 32b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">010</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01110</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4E</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x4E</code><td>1:1<tr><td>CAS 64b<td style="text-align: right"><code class="language-plaintext highlighter-rouge">011</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">01110</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6E</code><td style="text-align: right"><code class="language-plaintext highlighter-rouge">0x6E</code><td>1:1</table></div><p>PCIe 6.0 Table 2-5 的 <code class="language-plaintext highlighter-rouge">Translation Rule = 1:1</code> 的含义是：</p><blockquote><p>在 Non-Flit Mode 与 Flit Mode 之间转换时，该 TLP 的事务语义和行为不发生变化。</p></blockquote><p>注意：这里的 <strong>1:1 不是说 Header 二进制内容原样透传</strong>。</p><p>它只是表示 transaction meaning 不变。</p><p>真正的 translator 仍然必须重新组织 Header 字段。</p><hr /><h2 id="6-header-base不是固定长度-header"><span class="me-2">6. Header Base：不是固定长度 Header</span><a href="#6-header-base不是固定长度-header" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Flit Mode 中每个 TLP 都有 Header Base，但 Header Base 并不是固定 3DW 或固定 4DW。</p><p>其大小由：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 </pre><td class="rouge-code"><pre>Type[7:0]
-</pre></table></code></div></div><p>直接决定。</p><p>典型情况包括：</p><div class="table-wrapper"><table><thead><tr><th>TLP<th style="text-align: right">Header Base Size<tbody><tr><td>NOP<td style="text-align: right">1 DW<tr><td>MRd32 / IORd / Config Request<td style="text-align: right">3 DW<tr><td>MRd64<td style="text-align: right">4 DW<tr><td>Completion<td style="text-align: right">通常 3 DW<tr><td>其他 FM Type<td style="text-align: right">根据 Type 定义，可更长</table></div><p>所以 RTL parser 的顺序应该是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+   │
+   ├─ TLP semantics
+   ├─ Header Base format
+   ├─ Header Base size
+   └─ Data payload property
+</pre></table></code></div></div><p>不同 Type 的 Header Base size 可以不同。常见传统事务里 3DW/4DW 很多，但 FM type space 还定义或预留了更长的 Header Base。</p><p>所以 parser 不应该写成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>if 3DW ...
+else if 4DW ...
+</pre></table></code></div></div><p>更合理的是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
@@ -205,285 +131,85 @@ FM  MRd32 : 0x03
 7
 8
 9
-10
-11
 </pre><td class="rouge-code"><pre>Type[7:0]
-    ↓
-lookup Header Base format / size
-    ↓
-读取 Header Base
-    ↓
-解析 OHC presence
-    ↓
-读取 OHC
-    ↓
+   ↓
+header-format lookup
+   ↓
+Header Base size / field decode
+   ↓
+OHC decode
+   ↓
 Payload / Trailer
-</pre></table></code></div></div><p>而不是先假定所有 FM Header 都是 3DW 或 4DW。</p><hr /><h2 id="7-header-base-第一-dw-是统一的"><span class="me-2">7. Header Base 第一 DW 是统一的</span><a href="#7-header-base-第一-dw-是统一的" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>虽然不同 Type 的 Header Base 后续字段不同，但所有普通 Flit Mode TLP 的 Header Base 第一 DW 都使用公共格式。</p><p>核心字段包括：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></table></code></div></div><hr /><h2 id="8-ohc不是-uio-专属"><span class="me-2">8. OHC：不是 UIO 专属</span><a href="#8-ohc不是-uio-专属" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>OHC = <strong>Orthogonal Header Content</strong>。</p><p>它不是 UIO，也不是 UIO 专属扩展，而是 Flit Mode TLP Header 的通用机制。</p><p>可以把它理解成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
 5
-6
-</pre><td class="rouge-code"><pre>Type
-TC
-OHC
-TS
-Attr
-Length
-</pre></table></code></div></div><p>因此第一 DW 完成两件事：</p><ol><li>告诉 Receiver 这是什么 TLP；<li>给出继续解析 Header/OHC/Payload 所需要的基本信息。</ol><p>后面的 Header Base 内容则由具体 Type 决定，例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-</pre><td class="rouge-code"><pre>Memory Request
-→ Requester ID / Tag / Address
-
-Configuration Request
-→ Requester ID / Tag / Destination ID / Register Number
-
-Completion
-→ Completer ID / Destination information / Tag / Byte Count / Lower Address
-
-Message
-→ Requester ID / Message Code / Message-specific content
-</pre></table></code></div></div><p>因此更准确的说法不是“3DW Header Base 有哪些字段”，而是：</p><blockquote><p><strong>不同 TLP Type 对应不同 Header Base format；Header Base Size 只是这个 format 的一个属性。</strong></p></blockquote><hr /><h2 id="8-ohc把附加-header-信息模块化"><span class="me-2">8. OHC：把附加 Header 信息模块化</span><a href="#8-ohc把附加-header-信息模块化" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>OHC 全称：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-</pre><td class="rouge-code"><pre>Orthogonal Header Content
-</pre></table></code></div></div><p>它不是 UIO 专属，也不是某一种 TLP 专属。</p><p>OHC 的目的，是把并非每个 TLP 都需要的附加信息，从固定 Header Base 中拆出来。</p><p>可以理解成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
 </pre><td class="rouge-code"><pre>Header Base
-    │
-    ├── 所有该 Type 都需要的核心信息
-    │
-    └── OHC presence
-             │
-             ▼
-            OHC
-             │
-             └── 按需携带扩展语义
-</pre></table></code></div></div><p>PCIe 6.0 还把 NFM 中原本位于 End-to-End TLP Prefix 的一些内容重新组织进 OHC；PH、Steering Tag、AMA/AV 等信息也被重新整理。</p><p>所以：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-</pre><td class="rouge-code"><pre>NFM
-3DW/4DW Header
-+ TLP Prefix
-       │
-       │ semantic re-encoding
-       ▼
-FM
-Header Base
-+ OHC
-</pre></table></code></div></div><p>这里是<strong>语义兼容</strong>，不是 binary format 兼容。</p><hr /><h2 id="9-message-也有自己的-fm-header-base"><span class="me-2">9. Message 也有自己的 FM Header Base</span><a href="#9-message-也有自己的-fm-header-base" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Flit Mode 并不是只给 Memory Request 和 Completion 定义新的 Header。</p><p>Message TLP 同样根据自己的 <code class="language-plaintext highlighter-rouge">Type[7:0]</code> 使用对应的 Header Base format。</p><p>NFM Message 原本使用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-</pre><td class="rouge-code"><pre>Msg / MsgD
-+ routing r[2:0]
-+ Message Code
-+ Requester ID
-+ message-specific fields
-</pre></table></code></div></div><p>到了 FM：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-</pre><td class="rouge-code"><pre>Type[7:0]
-    ↓
-选择对应 Message Header Base
-    ↓
-Message Code / Requester information / routing information
-    ↓
-必要时继续带 OHC
-    ↓
-Payload（若该 Message 有 Data）
-</pre></table></code></div></div><p>因此所有传统 transaction 都遵循同一个 FM 框架：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-</pre><td class="rouge-code"><pre>Type
-  ↓
-Header Base
-  ↓
-OHC
-  ↓
-Payload
-  ↓
-Trailer
-</pre></table></code></div></div><hr /><h2 id="10-uio-与-header-base--ohc-的关系"><span class="me-2">10. UIO 与 Header Base / OHC 的关系</span><a href="#10-uio-与-header-base--ohc-的关系" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>UIO 是另一层概念。</p><p>它不是 OHC，也不是 Flit 本身，而是 PCIe 6.x Flit Mode 下新增的一组 transaction semantics。</p><p>可以把关系画成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-</pre><td class="rouge-code"><pre>Transaction Layer
-│
-├── traditional PCIe transactions
-│     ├── MRd/MWr
-│     ├── Cpl
-│     ├── Cfg
-│     └── Message
-│
-└── UIO transactions
-      │
-      └── new ordering semantics
+  = 当前 TLP Type 的核心字段
 
-所有 Flit Mode TLP
-        │
-        ▼
- Type[7:0]
- Header Base
- + OHC
- + Payload
- + Trailer
-</pre></table></code></div></div><p>所以：</p><ul><li><strong>TLP</strong>：事务 packet；<li><strong>UIO</strong>：定义 transaction/ordering semantics；<li><strong>Header Base</strong>：该 Type 的核心 Header；<li><strong>OHC</strong>：按需添加的附加 Header 信息；<li><strong>Flit</strong>：承载这些 TLP 的 256B Data Stream 单元。</ul><p>另外，一些只存在于 Flit Mode 的新 TLP Type 没有 NFM 对应形式。这类 TLP 如果需要从 FM Egress 转到 NFM Link，协议会规定无法 translation，并触发相应的 <strong>TLP Translation Egress Blocked</strong> 处理。</p><hr /><h2 id="11-nfm--fm-translator-真正需要做什么"><span class="me-2">11. NFM → FM Translator 真正需要做什么</span><a href="#11-nfm--fm-translator-真正需要做什么" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>看到很多 Type 都是 1:1，很容易误以为 translator 只需要改 Type。</p><p>实际上远不止如此。</p><p>完整转换逻辑更接近：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+OHC
+  = 按需出现的附加语义
+</pre></table></code></div></div><p>NFM 中的一部分 Prefix / overloaded header 信息，在 FM 中被重新组织到 OHC 体系里。</p><p>所以 NFM ↔ FM 的兼容关系是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>transaction semantic compatibility
+</pre></table></code></div></div><p>而不是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>binary header compatibility
+</pre></table></code></div></div><hr /><h2 id="9-message-也有-fm-header-base"><span class="me-2">9. Message 也有 FM Header Base</span><a href="#9-message-也有-fm-header-base" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Message 并没有被排除在这套结构之外。</p><p>NFM Message：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre><td class="rouge-code"><pre>Fmt + Type(routing)
+Requester ID
+Message Code
+message-specific fields
+</pre></table></code></div></div><p>FM Message：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
 2
 3
 4
 5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-</pre><td class="rouge-code"><pre>NFM TLP
-   │
-   ├─ Fmt + Type
-   ├─ Header fields
-   ├─ Prefix
-   ├─ Payload
-   └─ Digest
-          │
-          ▼
-    semantic decode
-          │
-          ▼
-FM TLP
-   │
-   ├─ Type[7:0]
-   ├─ Header Base
-   ├─ OHC
-   ├─ Payload
-   └─ Trailer
-</pre></table></code></div></div><p>RTL 上至少需要完成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-</pre><td class="rouge-code"><pre>1. Fmt + Type → FM Type[7:0]
-2. 根据 transaction semantics 重新生成 Header Base
-3. 将 NFM Prefix / 扩展信息转换到对应 OHC
-4. 重新组织 Tag、Address、Requester/Completer ID 等字段
-5. 处理 FM only 类型是否允许进入 NFM Egress
-</pre></table></code></div></div><p>因此：</p><blockquote><p><strong>FM/NFM Translation 是语义级的 Header Translation，不是字节级 Header passthrough。</strong></p></blockquote><hr /><h2 id="12-从设计角度最值得记住的模型"><span class="me-2">12. 从设计角度最值得记住的模型</span><a href="#12-从设计角度最值得记住的模型" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>整个 PCIe 6.0 TLP 体系可以压缩成下面这张图：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-</pre><td class="rouge-code"><pre>                 Transaction semantics
-                         │
-          ┌──────────────┴──────────────┐
-          │                             │
-         NFM                           FM
-          │                             │
-     Fmt + Type                     Type[7:0]
-          │                             │
-   3DW/4DW Header                  Header Base
-   + Prefix                        + OHC
-          │                             │
-          └──── semantic translation ──┘
-                                        │
-                                        ▼
-                                  TLP byte stream
-                                        │
-                                        ▼
-                                  packed into
-                                   256B Flit
-                                        │
-                                        ▼
-                                  PHY encoding
-</pre></table></code></div></div><p>从这里也能看出：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-</pre><td class="rouge-code"><pre>256B Flit
-≠ 128b/130b Block
-</pre></table></code></div></div><p>二者处在不同层次。</p><p>Flit Mode 甚至可以工作在采用 NRZ / 128b/130b PHY encoding 的较低速率下，这正说明 Flit Mode 是 Data Stream/TLP 组织机制，而不是 PHY encoding 本身。</p><hr /><h2 id="总结"><span class="me-2">总结</span><a href="#总结" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>PCIe 6.0 Flit Mode 对 TLP 的核心变化可以归纳为：</p><ol><li><strong>TLP 没有消失。</strong><li>NFM 使用 <code class="language-plaintext highlighter-rouge">Fmt[2:0] + Type[4:0]</code>；FM 使用 fully-decoded <code class="language-plaintext highlighter-rouge">Type[7:0]</code>。<li>FM 的 <code class="language-plaintext highlighter-rouge">Type[7:0]</code> 同时决定 TLP 类型以及对应 Header Base format/size。<li>Header Base 不是固定长度；不同 Type 使用不同的 Header Base。<li>OHC 用来按需携带扩展 Header 信息，可以为 0 DW。<li>NFM 的 Header/Prefix 信息在 FM 中被<strong>重新编码和重新组织</strong>，而不是原样放置。<li><code class="language-plaintext highlighter-rouge">Translation Rule = 1:1</code> 表示事务语义不变，不表示 Header binary format 不变。<li>MRd32 是一个典型例外：NFM <code class="language-plaintext highlighter-rouge">0x00</code> 到 FM 必须改成 <code class="language-plaintext highlighter-rouge">0x03</code>，因为 FM <code class="language-plaintext highlighter-rouge">0x00</code> 被 NOP 使用。<li>UIO 是新的 transaction/ordering semantics；UIO TLP 仍然使用 FM 的 Type + Header Base + OHC 框架。<li>完整 FM TLP 大小可以理解为：</ol><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
-2
-3
-4
-5
-6
-</pre><td class="rouge-code"><pre>TLP Size
-=
+</pre><td class="rouge-code"><pre>Type[7:0]
 Header Base
-+ OHC
-+ Payload
-+ TLP Trailer
-</pre></table></code></div></div><p>对于 Controller / Switch RTL，实现上最重要的思维方式是：</p><blockquote><p><strong>先解码 transaction semantics，再生成目标 Data Stream Mode 对应的 Header；不要把 NFM↔FM Translation 理解成简单的 Header 字节搬运。</strong></p></blockquote><h3 id="协议参考"><span class="me-2">协议参考</span><a href="#协议参考" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><ul><li>PCI Express Base Specification Revision 5.0：Section 2.2，Non-Flit Mode <code class="language-plaintext highlighter-rouge">Fmt[2:0] + Type[4:0]</code> TLP encoding。<li>PCI Express Base Specification Revision 6.0：Section 2.2.1.2，Flit Mode common packet header fields。<li>PCI Express Base Specification Revision 6.0：Table 2-5，Flit Mode TLP Header Type Encodings / Translation Rule。<li>PCI Express Base Specification Revision 6.0：Section 2.2.7.2，Flit Mode Header Base formats。</ul></div><div class="post-tail-wrapper text-muted"><div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div class="post-meta"> <i class="far fa-folder-open fa-fw me-1"></i> <a href="/categories/pcie/">PCIe</a>, <a href="/categories/protocol/">Protocol</a></div></div><div class="post-tags"> <i class="fa fa-tags fa-fw me-1"></i> <a href="/tags/pcie/" class="post-tag no-text-decoration" >PCIe</a> <a href="/tags/pcie-6-0/" class="post-tag no-text-decoration" >PCIe 6.0</a> <a href="/tags/flit-mode/" class="post-tag no-text-decoration" >Flit Mode</a> <a href="/tags/tlp/" class="post-tag no-text-decoration" >TLP</a> <a href="/tags/ohc/" class="post-tag no-text-decoration" >OHC</a> <a href="/tags/uio/" class="post-tag no-text-decoration" >UIO</a></div><div class=" post-tail-bottom d-flex justify-content-between align-items-center mt-5 pb-2 " ><div class="license-wrapper"> 本文由作者按照 <a href="https://creativecommons.org/licenses/by/4.0/"> CC BY 4.0 </a> 进行授权</div><div class="share-wrapper d-flex align-items-center"> <span class="share-label text-muted">分享</span> <span class="share-icons"> <a href="https://twitter.com/intent/tweet?text=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes&url=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Twitter" aria-label="Twitter"> <i class="fa-fw fa-brands fa-square-x-twitter"></i> </a> <a href="https://www.facebook.com/sharer/sharer.php?title=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes&u=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook" aria-label="Facebook"> <i class="fa-fw fab fa-facebook-square"></i> </a> <a href="https://t.me/share/url?url=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F&text=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Telegram" aria-label="Telegram"> <i class="fa-fw fab fa-telegram"></i> </a> <button id="copy-link" aria-label="Copy link" class="btn small" data-bs-toggle="tooltip" data-bs-placement="top" title="分享链接" data-title-succeed="链接已复制！" > <i class="fa-fw fas fa-link pe-none fs-6"></i> </button> </span></div></div></div></article></main><aside aria-label="Panel" id="panel-wrapper" class="col-xl-3 ps-2 text-muted"><div class="access"><section id="access-lastmod"><h2 class="panel-heading">最近更新</h2><ul class="content list-unstyled ps-0 pb-1 ms-1 mt-2"><li class="text-truncate lh-lg"> <a href="/pcie6-flit-tlp-header-ohc-translation/">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</a><li class="text-truncate lh-lg"> <a href="/pcie-phy-rterm/">PCIe PHY Rterm、VCM 与 AC Coupling</a><li class="text-truncate lh-lg"> <a href="/pcie-flit-mode/">PCIe Flit Mode：能力、声明与协商</a><li class="text-truncate lh-lg"> <a href="/pcie-tx-ffe/">PCIe Tx FFE & Preset Study Notes</a><li class="text-truncate lh-lg"> <a href="/IEEE-Standard-754-Floating-Point-Numbers/2021/07/29/">IEEE Standard 754 Floating Point Numbers</a></ul></section><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a> <a class="post-tag btn btn-outline-primary" href="/tags/ohc/">OHC</a> <a class="post-tag btn btn-outline-primary" href="/tags/pcie-6-0/">PCIe 6.0</a></div></section></div><div class="toc-border-cover z-3"></div><section id="toc-wrapper" class="invisible position-sticky ps-0 pe-4 pb-4"><h2 class="panel-heading ps-3 pb-2 mb-0">文章内容</h2><nav id="toc"></nav></section></aside></div><div class="row"><div id="tail-wrapper" class="col-12 col-lg-11 col-xl-9 px-md-4"><aside id="related-posts" aria-labelledby="related-label"><h3 class="mb-4" id="related-label">相关文章</h3><nav class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4"><article class="col"> <a href="/pcie-flit-mode/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789354200" data-df="YYYY/MM/DD" > 2026/09/14 </time><h4 class="pt-0 my-2">PCIe Flit Mode：能力、声明与协商</h4><div class="text-muted"><p>梳理 PCIe Flit Mode 的 Component Capability、TS Advertisement、Flit_Mode_Enabled 协商结果，以及它与 64 GT/s、L0s/L0p 的区别。</p></div></div></a></article><article class="col"> <a href="/pcie-phy-rterm/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789524000" data-df="YYYY/MM/DD" > 2026/09/16 </time><h4 class="pt-0 my-2">PCIe PHY Rterm、VCM 与 AC Coupling</h4><div class="text-muted"><p>在 PCIe PHY 调试中，经常会看到 Rterm、VCM、Rterm calibration、Receiver Detect 等概念。它们实际上都和高速差分接收端的电气工作方式有关。 1. Rterm 是什么 Rterm（Receiver Termination）就是接收端终端阻抗。PCIe 差分通道通常按约 100 Ω 差分阻抗设计，因此 RX 端需要提供与通道匹配的终端阻抗，以降...</p></div></div></a></article><article class="col"> <a href="/pcie-tx-ffe/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789056000" data-df="YYYY/MM/DD" > 2026/09/11 </time><h4 class="pt-0 my-2">PCIe Tx FFE & Preset Study Notes</h4><div class="text-muted"><p>PCIe Tx FFE、Pre-Shoot、De-emphasis 与 Gen3 至 Gen6 Preset 学习笔记和交互式可视化工具。</p></div></div></a></article></nav></aside><nav class="post-navigation d-flex justify-content-between" aria-label="Post Navigation"> <a href="/pcie-phy-rterm/" class="btn btn-outline-primary" aria-label="上一篇" ><p>PCIe PHY Rterm、VCM 与 AC Coupling</p></a><div class="btn btn-outline-primary disabled" aria-label="下一篇"><p>-</p></div></nav><footer aria-label="Site Info" class=" d-flex flex-column justify-content-center text-muted flex-lg-row justify-content-lg-between align-items-lg-center pb-lg-3 " ><p>© <time>2026</time> <a href="https://github.com/MaNan93">MaNan</a>. <span data-bs-toggle="tooltip" data-bs-placement="top" title="除非另有说明，本网站上的博客文章均由作者按照知识共享署名 4.0 国际 (CC BY 4.0) 许可协议进行授权。" >保留部分权利。</span></p><p>本站采用 <a href="https://jekyllrb.com" target="_blank" rel="noopener">Jekyll</a> 主题 <a data-bs-toggle="tooltip" data-bs-placement="top" title="v7.6.0" href="https://github.com/cotes2020/jekyll-theme-chirpy" target="_blank" rel="noopener" >Chirpy</a></p></footer></div></div><div id="search-result-wrapper" class="d-flex justify-content-center d-none"><div class="col-11 content"><div id="search-hints"><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a> <a class="post-tag btn btn-outline-primary" href="/tags/ohc/">OHC</a> <a class="post-tag btn btn-outline-primary" href="/tags/pcie-6-0/">PCIe 6.0</a></div></section></div><div id="search-results" class="d-flex flex-wrap justify-content-center text-muted mt-3"></div></div></div></div><aside aria-label="Scroll to Top"> <button id="back-to-top" type="button" class="btn btn-lg btn-box-shadow"> <i class="fas fa-angle-up"></i> </button></aside></div><div id="mask" class="d-none position-fixed w-100 h-100 z-1"></div><aside id="notification" class="toast w-auto rounded-5 text-nowrap" role="alert" aria-live="assertive" aria-atomic="true" data-bs-animation="true" data-bs-autohide="false" ><div class="d-flex align-items-center"><div class="toast-body ps-3">发现新内容</div><button type="button" class="btn btn-primary btn-sm rounded-2 py-0" aria-label="Update" >更新</button> <button type="button" class="btn-close mx-3 ms-2" data-bs-dismiss="toast" aria-label="Close" ></button></div></aside><script> document.addEventListener('DOMContentLoaded', () => { SimpleJekyllSearch({ searchInput: document.getElementById('search-input'), resultsContainer: document.getElementById('search-results'), json: '/assets/js/data/search.json', searchResultTemplate: '<article class="px-1 px-sm-2 px-lg-4 px-xl-0"><header><h2><a href="{url}">{title}</a></h2><div class="post-meta d-flex flex-column flex-sm-row text-muted mt-1 mb-1"> {categories} {tags}</div></header><p>{content}</p></article>', noResultsText: '<p class="mt-5">搜索结果为空</p>', templateMiddleware: function(prop, value, template) { if (prop === 'categories') { if (value === '') { return `${value}`; } else { return `<div class="me-sm-4"><i class="far fa-folder fa-fw"></i>${value}</div>`; } } if (prop === 'tags') { if (value === '') { return `${value}`; } else { return `<div><i class="fa fa-tag fa-fw"></i>${value}</div>`; } } } }); }); </script>
++ OHC (when required)
++ Payload (for MsgD-like semantics)
++ Trailer
+</pre></table></code></div></div><p>所以从 FM parser 的角度，Memory / Configuration / Completion / Message / AtomicOp 等都遵循同一主线：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Type -&gt; Header Base -&gt; OHC -&gt; Payload -&gt; Trailer
+</pre></table></code></div></div><hr /><h2 id="10-uio-在哪里"><span class="me-2">10. UIO 在哪里</span><a href="#10-uio-在哪里" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>UIO 是 transaction / ordering semantics 层面的能力，不等于 OHC。</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre><td class="rouge-code"><pre>Flit Mode TLP framework
+        │
+        ├─ traditional PCIe transactions
+        │    MRd / MWr / Cpl / Cfg / Msg ...
+        │
+        └─ UIO transactions
+             new ordering semantics
+</pre></table></code></div></div><p>UIO TLP 仍然使用 Flit Mode 的 Header Base / OHC 体系。</p><p>一些 FM-only TLP Type 没有 NFM 对应形式；当这些 TLP 试图经过 NFM Egress 时，协议可能要求阻断并报告对应的 TLP Translation Egress Blocked 条件。</p><hr /><h2 id="11-从-rtl-translator-的角度看"><span class="me-2">11. 从 RTL Translator 的角度看</span><a href="#11-从-rtl-translator-的角度看" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>真正的 NFM → FM translator 至少要做：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre><td class="rouge-code"><pre>1. decode NFM Fmt + Type
+2. recover transaction semantics
+3. map to FM Type[7:0]
+4. regenerate FM Header Base
+5. move/expand fields into OHC when required
+6. preserve payload semantics
+7. generate FM trailer-related information
+</pre></table></code></div></div><p>反方向也是一样：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre><td class="rouge-code"><pre>FM Type + Header Base + OHC
+        ↓
+semantic decode
+        ↓
+NFM Fmt + Type + Header/Prefix
+</pre></table></code></div></div><p>因此最重要的一句话是：</p><blockquote><p><strong>NFM/FΜ Translation 是 transaction-semantic translation，不是 Header bits 的简单搬运。</strong></p></blockquote><hr /><h2 id="12-总结"><span class="me-2">12. 总结</span><a href="#12-总结" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><ol><li>NFM 使用 <code class="language-plaintext highlighter-rouge">Fmt[2:0] + Type[4:0]</code>；FM 使用 fully-decoded <code class="language-plaintext highlighter-rouge">Type[7:0]</code>。<li>FM 的 Type 同时决定 Header Base format 和 size。<li><code class="language-plaintext highlighter-rouge">Translation Rule = 1:1</code> 表示事务语义保持不变，不表示 Header binary layout 不变。<li>MWr64 虽然 NFM/FM 都是 4DW，但字段组织已经发生变化。<li>FM Tag 直接扩展到 14 bit。<li>Byte Enable 等信息不再必须永久占用 Base Header；需要时可通过 OHC 携带。<li>Completion 的变化更明显：FM 将核心 Completion 信息保留在 Base Header，把部分条件性扩展语义交给 OHC。<li>Message、AtomicOp、UIO 等最终都落在 <code class="language-plaintext highlighter-rouge">Type -&gt; Header Base -&gt; OHC -&gt; Payload -&gt; Trailer</code> 这套 FM TLP 框架中。<li>256B Flit 是 Data Stream 组织单元，不是对 PHY 128b/130b block 的替代。</ol><h3 id="协议参考"><span class="me-2">协议参考</span><a href="#协议参考" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><ul><li>PCI Express Base Specification Revision 5.0：Section 2.2，Table 2-2 / Table 2-3，Figure 2-17，Figure 2-38。<li>PCI Express Base Specification Revision 6.0：Table 2-5，Section 2.2.7.2，Figure 2-39，Figure 2-76，以及 OHC-A 相关定义。</ul></div><div class="post-tail-wrapper text-muted"><div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div class="post-meta"> <i class="far fa-folder-open fa-fw me-1"></i> <a href="/categories/pcie/">PCIe</a>, <a href="/categories/protocol/">Protocol</a></div></div><div class="post-tags"> <i class="fa fa-tags fa-fw me-1"></i> <a href="/tags/pcie/" class="post-tag no-text-decoration" >PCIe</a> <a href="/tags/pcie-6-0/" class="post-tag no-text-decoration" >PCIe 6.0</a> <a href="/tags/flit-mode/" class="post-tag no-text-decoration" >Flit Mode</a> <a href="/tags/tlp/" class="post-tag no-text-decoration" >TLP</a> <a href="/tags/ohc/" class="post-tag no-text-decoration" >OHC</a> <a href="/tags/uio/" class="post-tag no-text-decoration" >UIO</a></div><div class=" post-tail-bottom d-flex justify-content-between align-items-center mt-5 pb-2 " ><div class="license-wrapper"> 本文由作者按照 <a href="https://creativecommons.org/licenses/by/4.0/"> CC BY 4.0 </a> 进行授权</div><div class="share-wrapper d-flex align-items-center"> <span class="share-label text-muted">分享</span> <span class="share-icons"> <a href="https://twitter.com/intent/tweet?text=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes&url=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Twitter" aria-label="Twitter"> <i class="fa-fw fa-brands fa-square-x-twitter"></i> </a> <a href="https://www.facebook.com/sharer/sharer.php?title=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes&u=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook" aria-label="Facebook"> <i class="fa-fw fab fa-facebook-square"></i> </a> <a href="https://t.me/share/url?url=https%3A%2F%2Fmanan93.github.io%2Fpcie6-flit-tlp-header-ohc-translation%2F&text=PCIe%206%20Flit%20Mode%20TLP%EF%BC%9AHeader%20Base%E3%80%81OHC%20%E4%B8%8E%20NFM/FM%20%E8%BD%AC%E6%8D%A2%20-%20MaNan%20Notes" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Telegram" aria-label="Telegram"> <i class="fa-fw fab fa-telegram"></i> </a> <button id="copy-link" aria-label="Copy link" class="btn small" data-bs-toggle="tooltip" data-bs-placement="top" title="分享链接" data-title-succeed="链接已复制！" > <i class="fa-fw fas fa-link pe-none fs-6"></i> </button> </span></div></div></div></article></main><aside aria-label="Panel" id="panel-wrapper" class="col-xl-3 ps-2 text-muted"><div class="access"><section id="access-lastmod"><h2 class="panel-heading">最近更新</h2><ul class="content list-unstyled ps-0 pb-1 ms-1 mt-2"><li class="text-truncate lh-lg"> <a href="/pcie6-flit-tlp-header-ohc-translation/">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</a><li class="text-truncate lh-lg"> <a href="/pcie-phy-rterm/">PCIe PHY Rterm、VCM 与 AC Coupling</a><li class="text-truncate lh-lg"> <a href="/pcie-flit-mode/">PCIe Flit Mode：能力、声明与协商</a><li class="text-truncate lh-lg"> <a href="/pcie-tx-ffe/">PCIe Tx FFE & Preset Study Notes</a><li class="text-truncate lh-lg"> <a href="/IEEE-Standard-754-Floating-Point-Numbers/2021/07/29/">IEEE Standard 754 Floating Point Numbers</a></ul></section><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a> <a class="post-tag btn btn-outline-primary" href="/tags/ohc/">OHC</a> <a class="post-tag btn btn-outline-primary" href="/tags/pcie-6-0/">PCIe 6.0</a></div></section></div><div class="toc-border-cover z-3"></div><section id="toc-wrapper" class="invisible position-sticky ps-0 pe-4 pb-4"><h2 class="panel-heading ps-3 pb-2 mb-0">文章内容</h2><nav id="toc"></nav></section></aside></div><div class="row"><div id="tail-wrapper" class="col-12 col-lg-11 col-xl-9 px-md-4"><aside id="related-posts" aria-labelledby="related-label"><h3 class="mb-4" id="related-label">相关文章</h3><nav class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4"><article class="col"> <a href="/pcie-flit-mode/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789354200" data-df="YYYY/MM/DD" > 2026/09/14 </time><h4 class="pt-0 my-2">PCIe Flit Mode：能力、声明与协商</h4><div class="text-muted"><p>梳理 PCIe Flit Mode 的 Component Capability、TS Advertisement、Flit_Mode_Enabled 协商结果，以及它与 64 GT/s、L0s/L0p 的区别。</p></div></div></a></article><article class="col"> <a href="/pcie-phy-rterm/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789524000" data-df="YYYY/MM/DD" > 2026/09/16 </time><h4 class="pt-0 my-2">PCIe PHY Rterm、VCM 与 AC Coupling</h4><div class="text-muted"><p>在 PCIe PHY 调试中，经常会看到 Rterm、VCM、Rterm calibration、Receiver Detect 等概念。它们实际上都和高速差分接收端的电气工作方式有关。 1. Rterm 是什么 Rterm（Receiver Termination）就是接收端终端阻抗。PCIe 差分通道通常按约 100 Ω 差分阻抗设计，因此 RX 端需要提供与通道匹配的终端阻抗，以降...</p></div></div></a></article><article class="col"> <a href="/pcie-tx-ffe/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789056000" data-df="YYYY/MM/DD" > 2026/09/11 </time><h4 class="pt-0 my-2">PCIe Tx FFE & Preset Study Notes</h4><div class="text-muted"><p>PCIe Tx FFE、Pre-Shoot、De-emphasis 与 Gen3 至 Gen6 Preset 学习笔记和交互式可视化工具。</p></div></div></a></article></nav></aside><nav class="post-navigation d-flex justify-content-between" aria-label="Post Navigation"> <a href="/pcie-phy-rterm/" class="btn btn-outline-primary" aria-label="上一篇" ><p>PCIe PHY Rterm、VCM 与 AC Coupling</p></a><div class="btn btn-outline-primary disabled" aria-label="下一篇"><p>-</p></div></nav><footer aria-label="Site Info" class=" d-flex flex-column justify-content-center text-muted flex-lg-row justify-content-lg-between align-items-lg-center pb-lg-3 " ><p>© <time>2026</time> <a href="https://github.com/MaNan93">MaNan</a>. <span data-bs-toggle="tooltip" data-bs-placement="top" title="除非另有说明，本网站上的博客文章均由作者按照知识共享署名 4.0 国际 (CC BY 4.0) 许可协议进行授权。" >保留部分权利。</span></p><p>本站采用 <a href="https://jekyllrb.com" target="_blank" rel="noopener">Jekyll</a> 主题 <a data-bs-toggle="tooltip" data-bs-placement="top" title="v7.6.0" href="https://github.com/cotes2020/jekyll-theme-chirpy" target="_blank" rel="noopener" >Chirpy</a></p></footer></div></div><div id="search-result-wrapper" class="d-flex justify-content-center d-none"><div class="col-11 content"><div id="search-hints"><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a> <a class="post-tag btn btn-outline-primary" href="/tags/ohc/">OHC</a> <a class="post-tag btn btn-outline-primary" href="/tags/pcie-6-0/">PCIe 6.0</a></div></section></div><div id="search-results" class="d-flex flex-wrap justify-content-center text-muted mt-3"></div></div></div></div><aside aria-label="Scroll to Top"> <button id="back-to-top" type="button" class="btn btn-lg btn-box-shadow"> <i class="fas fa-angle-up"></i> </button></aside></div><div id="mask" class="d-none position-fixed w-100 h-100 z-1"></div><aside id="notification" class="toast w-auto rounded-5 text-nowrap" role="alert" aria-live="assertive" aria-atomic="true" data-bs-animation="true" data-bs-autohide="false" ><div class="d-flex align-items-center"><div class="toast-body ps-3">发现新内容</div><button type="button" class="btn btn-primary btn-sm rounded-2 py-0" aria-label="Update" >更新</button> <button type="button" class="btn-close mx-3 ms-2" data-bs-dismiss="toast" aria-label="Close" ></button></div></aside><script> document.addEventListener('DOMContentLoaded', () => { SimpleJekyllSearch({ searchInput: document.getElementById('search-input'), resultsContainer: document.getElementById('search-results'), json: '/assets/js/data/search.json', searchResultTemplate: '<article class="px-1 px-sm-2 px-lg-4 px-xl-0"><header><h2><a href="{url}">{title}</a></h2><div class="post-meta d-flex flex-column flex-sm-row text-muted mt-1 mb-1"> {categories} {tags}</div></header><p>{content}</p></article>', noResultsText: '<p class="mt-5">搜索结果为空</p>', templateMiddleware: function(prop, value, template) { if (prop === 'categories') { if (value === '') { return `${value}`; } else { return `<div class="me-sm-4"><i class="far fa-folder fa-fw"></i>${value}</div>`; } } if (prop === 'tags') { if (value === '') { return `${value}`; } else { return `<div><i class="fa fa-tag fa-fw"></i>${value}</div>`; } } } }); }); </script>
