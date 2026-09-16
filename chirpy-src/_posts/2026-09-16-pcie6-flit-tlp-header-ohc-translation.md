@@ -8,54 +8,33 @@ description: 从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Fl
 toc: true
 ---
 
-PCIe 6.0 引入 Flit Mode 后，最容易产生的误解之一，是把 **256B Flit** 当成对传统 128b/130b Block 的替代。
+PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 **TLP Header 的组织方式**。
 
-实际上两者不在同一层次：
-
-- **128b/130b** 是 PHY encoding；
-- **Flit Mode** 是一种 Data Stream Mode；
-- **256B Flit** 是 Flit Mode 下固定长度的数据组织单元；
-- **TLP** 仍然存在，但其 Header 编码方式发生了明显变化。
-
-本文重点讨论 PCIe 6.0 Transaction Layer 中最重要的一组变化：
+最重要的主线是：
 
 ```text
-Non-Flit Mode TLP
-    Fmt + Type
-    3DW/4DW Header
-    optional Prefix
-          │
-          │  semantic translation
-          ▼
-Flit Mode TLP
-    Type[7:0]
-    Header Base
-    + OHC
-    + Payload
-    + TLP Trailer
+Non-Flit Mode
+Fmt[2:0] + Type[4:0]
+3DW / 4DW Header
+optional TLP Prefix
+        │
+        │ semantic translation
+        ▼
+Flit Mode
+Type[7:0]
+Header Base
++ OHC
++ Payload
++ TLP Trailer
 ```
+
+本文重点不是只看编码表，而是把 **NFM TLP 到 FM TLP 的字段重组**画出来。这样可以直接看到：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移出，以及 OHC 为什么会出现。
 
 ---
 
-## 1. Flit Mode TLP 的基本组成
+## 1. Flit Mode TLP 的组成
 
-PCIe 6.0 对 Flit Mode TLP 的组织可以概括为：
-
-```text
-Flit Mode TLP
-
-+----------------------------+
-| Header Base                |
-+----------------------------+
-| OHC                        |  optional，0~7 DW
-+----------------------------+
-| Payload                    |  0~1024 DW
-+----------------------------+
-| TLP Trailer                |  optional
-+----------------------------+
-```
-
-因此可以写成：
+可以把一个 Flit Mode TLP 写成：
 
 ```text
 TLP Size
@@ -70,39 +49,24 @@ Header Base Size
 
 - **Header Base Size**：由 `Type[7:0]` 决定；
 - **OHC Size**：可以为 0；
-- **Payload Size**：取决于 TLP 类型及 Length；
-- **TLP Trailer**：由 Trailer 相关指示决定是否存在。
+- **Payload Size**：由 TLP 类型和 `Length` 决定；
+- **TLP Trailer**：按 `TS[2:0]` 等规则决定是否存在及长度。
 
-一个 TLP 并不等于一个 Flit。TLP 会继续作为 byte stream 被 packing 到 256B Flit 中：
+需要注意：**TLP size 与 256B Flit size 是两个概念。**
 
-```text
-TLP A | TLP B | TLP C(partial)
-                │
-                ▼
-           256B Flit N
-
-TLP C(rest) | TLP D | ...
-                │
-                ▼
-           256B Flit N+1
-```
-
-因此：
-
-- 一个 Flit 可以包含多个 TLP；
-- 一个 TLP 也可以跨多个 Flit。
+一个 Flit 可以包含多个 TLP，一个 TLP 也可以跨多个 Flit。
 
 ---
 
-## 2. NFM 的 TLP Header：Fmt + Type
+## 2. NFM：Fmt + Type
 
-PCIe 5.x 及 PCIe 6.0 的 Non-Flit Mode 延续传统 TLP 编码：
+PCIe 5.x 的传统 Non-Flit Mode 使用：
 
 ```text
 Fmt[2:0] + Type[4:0]
 ```
 
-`Fmt` 主要描述 Header 长度及是否带 Data：
+`Fmt` 同时告诉 Receiver Header 长度以及是否带 Data：
 
 | Fmt | 含义 |
 |---|---|
@@ -115,135 +79,57 @@ Fmt[2:0] + Type[4:0]
 例如 Memory Request：
 
 ```text
-MRd32 : Fmt=000 Type=00000
-MRd64 : Fmt=001 Type=00000
-MWr32 : Fmt=010 Type=00000
-MWr64 : Fmt=011 Type=00000
+MRd32 : 000_00000 = 0x00
+MRd64 : 001_00000 = 0x20
+MWr32 : 010_00000 = 0x40
+MWr64 : 011_00000 = 0x60
 ```
 
-因此 NFM 中必须把 `Fmt + Type` 放在一起解析，才能完整知道这是什么 TLP。
+因此 NFM parser 必须联合解释 `Fmt + Type`。
 
 ---
 
-## 3. FM 改成 fully-decoded Type[7:0]
+## 3. FM：fully-decoded Type[7:0]
 
-到了 Flit Mode，PCIe 6.0 不再使用独立的 `Fmt[2:0] + Type[4:0]` 来决定 packet 类型，而是直接定义：
+Flit Mode 取消独立的 `Fmt` 字段，改用：
 
 ```text
 Type[7:0]
 ```
 
-并要求 Receiver 对这个字段进行完整解码。
+`Type[7:0]` 直接决定：
 
-可以把变化理解成：
+- transaction type；
+- Header Base format；
+- Header Base size；
+- 是否带 Payload 等基本属性。
 
-```text
-NFM
-+---------+---------+
-| Fmt[2:0]|Type[4:0]|
-+---------+---------+
-          │
-          ▼
-FM
-+-------------------+
-|     Type[7:0]     |
-+-------------------+
-```
-
-绝大多数传统 TLP 的 FM Type 编码都能看到明显的历史连续性：原来的 `Fmt + Type` 组合值基本被保留下来。
-
-例如：
+很多传统 TLP 的编码仍然保留了历史连续性。例如：
 
 ```text
-IORd
+IOWr : NFM 010_00010 = 0x42
+       FM  Type       = 0x42
 
-NFM:
-Fmt  = 000
-Type = 00010
+CplD : NFM 010_01010 = 0x4A
+       FM  Type       = 0x4A
 
-000_00010 = 0x02
-
-FM:
-Type[7:0] = 0x02
+MWr64: NFM 011_00000 = 0x60
+       FM  Type       = 0x60
 ```
+
+但并非所有类型都能原值保留。最典型的是 `MRd32`：
 
 ```text
-IOWr
-
-NFM:
-Fmt  = 010
-Type = 00010
-
-010_00010 = 0x42
-
-FM:
-Type[7:0] = 0x42
+NFM MRd32 = 0x00
+FM  0x00  = NOP
+FM  MRd32 = 0x03
 ```
 
-```text
-CplD
-
-NFM:
-Fmt  = 010
-Type = 01010
-
-010_01010 = 0x4A
-
-FM:
-Type[7:0] = 0x4A
-```
-
-因此 FM 并不是毫无关联地重新设计 Type 数值，而是把原本由 `Fmt + Type` 联合表达的信息，展开到了一个 fully-decoded 的 8-bit Type 空间中。
+因此 PCIe 6.0 Table 2-5 对 MRd32 明确要求修改 Type field value。
 
 ---
 
-## 4. 一个特殊例子：MRd32 为什么变成 0x03
-
-传统 NFM 中：
-
-```text
-MRd32
-Fmt  = 000
-Type = 00000
-
-=> 0x00
-```
-
-但 PCIe 6.0 Flit Mode 中：
-
-```text
-Type 0x00 = NOP
-```
-
-因此 `0x00` 已经不能继续表示 MRd32。
-
-PCIe 6.0 将 32-bit Address Memory Read Request 重新编码为：
-
-```text
-MRd32 → Type = 0x03
-```
-
-这也是 Table 2-5 中一个非常典型的 Translation Rule：
-
-```text
-Requires change of Type field value
-```
-
-所以 MRd32 是理解 NFM/FM translation 很好的切入点：
-
-```text
-NFM MRd32 : 0x00
-      │
-      │ Type translation
-      ▼
-FM  MRd32 : 0x03
-```
-
----
-
-## 5. 常用 NFM ↔ FM Type 对照
-
-下面按“事务语义”整理常用类型。这里的 NFM Byte0 指把 `Fmt[2:0]` 与 `Type[4:0]` 拼成 8-bit 后的值。
+## 4. 常用 NFM ↔ FM Type 对照
 
 | Transaction | NFM Fmt | NFM Type | NFM Byte0 | FM Type[7:0] | Translation |
 |---|---:|---:|---:|---:|---|
@@ -268,357 +154,354 @@ FM  MRd32 : 0x03
 | CAS 32b | `010` | `01110` | `0x4E` | `0x4E` | 1:1 |
 | CAS 64b | `011` | `01110` | `0x6E` | `0x6E` | 1:1 |
 
-PCIe 6.0 Table 2-5 的 `Translation Rule = 1:1` 的含义是：
-
-> 在 Non-Flit Mode 与 Flit Mode 之间转换时，该 TLP 的事务语义和行为不发生变化。
-
-注意：这里的 **1:1 不是说 Header 二进制内容原样透传**。
-
-它只是表示 transaction meaning 不变。
-
-真正的 translator 仍然必须重新组织 Header 字段。
+这里的 `Translation Rule = 1:1` 指 **transaction meaning / behavior 保持一致**，不是说 Header bits 原样 passthrough。
 
 ---
 
-## 6. Header Base：不是固定长度 Header
+## 5. MWr64：把 NFM 和 FM 放在 bit 位置上比较
 
-Flit Mode 中每个 TLP 都有 Header Base，但 Header Base 并不是固定 3DW 或固定 4DW。
+这一组最适合观察 Header 的重组。
 
-其大小由：
+PCIe 5.0 Figure 2-17 中，64-bit Address Memory Request 的 NFM Header 是 4DW。MWr64 使用：
 
 ```text
-Type[7:0]
+Fmt  = 011b
+Type = 00000b
+Byte0 = 0x60
 ```
 
-直接决定。
+PCIe 6.0 Figure 2-39 中，Flit Mode Mem64 Request 同样是 4DW Header Base，但字段布局已经重新定义。
 
-典型情况包括：
+### 5.1 NFM MWr64 — PCIe 5.0 Figure 2-17
 
-| TLP | Header Base Size |
-|---|---:|
-| NOP | 1 DW |
-| MRd32 / IORd / Config Request | 3 DW |
-| MRd64 | 4 DW |
-| Completion | 通常 3 DW |
-| 其他 FM Type | 根据 Type 定义，可更长 |
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW / bit</th><th>31:29</th><th>28:24</th><th>23</th><th>22:20</th><th>19</th><th>18</th><th>17</th><th>16</th><th>15</th><th>14</th><th>13:12</th><th>11:10</th><th>9:0</th></tr></thead>
+<tbody>
+<tr><th>DW0</th><td>Fmt</td><td>Type</td><td>T9</td><td>TC</td><td>T8</td><td>Attr</td><td>LN</td><td>TH</td><td>TD</td><td>EP</td><td>Attr</td><td>AT</td><td>Length</td></tr>
+</tbody>
+</table>
+</div>
 
-所以 RTL parser 的顺序应该是：
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15:8</th><th>7:4</th><th>3:0</th></tr></thead>
+<tbody>
+<tr><th>DW1</th><td>Requester ID</td><td>Tag[7:0]</td><td>Last DW BE</td><td>First DW BE</td></tr>
+<tr><th>DW2</th><td colspan="4">Address[63:32]</td></tr>
+<tr><th>DW3</th><td colspan="3">Address[31:2]</td><td>PH / low aligned bits</td></tr>
+</tbody>
+</table>
+</div>
+
+> NFM 中扩展 Tag 的高位通过 `T9/T8` 参与形成 Tag；图中固定 Header 还直接保留 Last/First DW Byte Enable。
+
+### 5.2 FM MWr64 — PCIe 6.0 Figure 2-39
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW / bit</th><th>31:24</th><th>23:21</th><th>20:16</th><th>15:13</th><th>12:10</th><th>9:0</th></tr></thead>
+<tbody>
+<tr><th>DW0</th><td>Type[7:0]</td><td>TC[2:0]</td><td>OHC[4:0]</td><td>TS[2:0]</td><td>Attr[2:0]</td><td>Length[9:0]</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15</th><th>14</th><th>13:0</th></tr></thead>
+<tbody>
+<tr><th>DW1</th><td>Requester ID[15:0]</td><td>EP</td><td>R</td><td>Tag[13:0]</td></tr>
+<tr><th>DW2</th><td colspan="4">Address[63:32]</td></tr>
+<tr><th>DW3</th><td colspan="3">Address[31:2]</td><td>AT[1:0]</td></tr>
+</tbody>
+</table>
+</div>
+
+### 5.3 字段到底怎么变了
+
+把两边直接对应起来：
+
+| 语义 | NFM MWr64 | FM MWr64 |
+|---|---|---|
+| TLP 类型 | `Fmt=011 + Type=00000` | `Type[7:0]=0x60` |
+| Header 长度 / with-data 信息 | `Fmt` 显式编码 | 由 `Type[7:0]` 对应的 FM type 定义 |
+| Requester ID | Header 内 | Header Base 内 |
+| Tag | `Tag[7:0] + T8 + T9`，最多 10-bit | Base Header 直接 `Tag[13:0]` |
+| Byte Enable | 固定占用 DW1 | 默认值可隐含；需要特殊 BE 时由 OHC（例如 OHC-A1）携带 |
+| Address | DW2/DW3 | 仍在 DW2/DW3，但 Header Base 重新编码 |
+| AT | NFM common/request header 中 | FM DW3 `[1:0]` |
+| Prefix / 扩展信息 | TLP Prefix / header overload | OHC |
+
+因此 MWr64 是一个很好的例子：**表面上两边都是 4DW，但绝不是同一个 4DW Header format。**
+
+```text
+NFM 4DW Header
+     │ semantic decode
+     ▼
+Memory Write + 64b Address + Payload
+     │ regenerate
+     ▼
+FM 4DW Header Base + optional OHC
+```
+
+---
+
+## 6. CplD：更容易看出 OHC 为什么存在
+
+Completion with Data 的编码在两种模式中都保持 `0x4A`：
+
+```text
+NFM: Fmt=010, Type=01010 -> 0x4A
+FM : Type[7:0]            -> 0x4A
+```
+
+但 Header 字段组织发生了明显变化。
+
+### 6.1 NFM Completion — PCIe 5.0 Figure 2-38
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15:13</th><th>12</th><th>11:0</th></tr></thead>
+<tbody>
+<tr><th>DW1</th><td>Completer ID</td><td>Completion Status</td><td>BCM</td><td>Byte Count</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15:8</th><th>7</th><th>6:0</th></tr></thead>
+<tbody>
+<tr><th>DW2</th><td>Requester ID</td><td>Tag[7:0]</td><td>R</td><td>Lower Address[6:0]</td></tr>
+</tbody>
+</table>
+</div>
+
+NFM Completion Header 固定包含：
+
+- Completer ID；
+- Completion Status；
+- BCM；
+- Byte Count；
+- Requester ID；
+- Tag；
+- Lower Address。
+
+### 6.2 FM Completion Header Base — PCIe 6.0 Figure 2-76
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW / bit</th><th>31:24</th><th>23:21</th><th>20:16</th><th>15:13</th><th>12:10</th><th>9:0</th></tr></thead>
+<tbody>
+<tr><th>DW0</th><td>Type</td><td>TC</td><td>OHC</td><td>TS</td><td>Attr</td><td>Length</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15</th><th>14</th><th>13:0</th></tr></thead>
+<tbody>
+<tr><th>DW1</th><td>Completer ID</td><td>EP</td><td>LA[6]</td><td>Tag[13:0]</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="table-responsive">
+<table class="table table-bordered text-center align-middle">
+<thead><tr><th>DW</th><th>31:16</th><th>15:12</th><th>11:0</th></tr></thead>
+<tbody>
+<tr><th>DW2</th><td>Destination BDF / BF (ARI)</td><td>LA[5:2]</td><td>Byte Count[11:0]</td></tr>
+</tbody>
+</table>
+</div>
+
+这里最值得注意的是：FM Completion Header Base 不再简单照搬 NFM Completion Header。
+
+例如一些 Completion 相关的附加信息按条件进入 **OHC-A5**。这样 Base Header 保留高频、核心字段，低频或扩展语义按需出现。
+
+所以 CplD 更能说明：
+
+```text
+NFM:
+固定 Header 承载更多字段
+
+FM:
+Header Base = core information
+OHC         = conditional / orthogonal information
+```
+
+这就是 OHC 设计最直观的价值之一。
+
+---
+
+## 7. Header Base 不是按“3DW/4DW”定义类型
+
+Flit Mode 中，真正决定格式的是 `Type[7:0]`。
+
+因此更准确的关系是：
 
 ```text
 Type[7:0]
-    ↓
-lookup Header Base format / size
-    ↓
-读取 Header Base
-    ↓
-解析 OHC presence
-    ↓
-读取 OHC
-    ↓
+   │
+   ├─ TLP semantics
+   ├─ Header Base format
+   ├─ Header Base size
+   └─ Data payload property
+```
+
+不同 Type 的 Header Base size 可以不同。常见传统事务里 3DW/4DW 很多，但 FM type space 还定义或预留了更长的 Header Base。
+
+所以 parser 不应该写成：
+
+```text
+if 3DW ...
+else if 4DW ...
+```
+
+更合理的是：
+
+```text
+Type[7:0]
+   ↓
+header-format lookup
+   ↓
+Header Base size / field decode
+   ↓
+OHC decode
+   ↓
 Payload / Trailer
 ```
 
-而不是先假定所有 FM Header 都是 3DW 或 4DW。
-
 ---
 
-## 7. Header Base 第一 DW 是统一的
+## 8. OHC：不是 UIO 专属
 
-虽然不同 Type 的 Header Base 后续字段不同，但所有普通 Flit Mode TLP 的 Header Base 第一 DW 都使用公共格式。
+OHC = **Orthogonal Header Content**。
 
-核心字段包括：
+它不是 UIO，也不是 UIO 专属扩展，而是 Flit Mode TLP Header 的通用机制。
+
+可以把它理解成：
 
 ```text
-Type
-TC
+Header Base
+  = 当前 TLP Type 的核心字段
+
 OHC
-TS
-Attr
-Length
+  = 按需出现的附加语义
 ```
 
-因此第一 DW 完成两件事：
+NFM 中的一部分 Prefix / overloaded header 信息，在 FM 中被重新组织到 OHC 体系里。
 
-1. 告诉 Receiver 这是什么 TLP；
-2. 给出继续解析 Header/OHC/Payload 所需要的基本信息。
-
-后面的 Header Base 内容则由具体 Type 决定，例如：
+所以 NFM ↔ FM 的兼容关系是：
 
 ```text
-Memory Request
-→ Requester ID / Tag / Address
-
-Configuration Request
-→ Requester ID / Tag / Destination ID / Register Number
-
-Completion
-→ Completer ID / Destination information / Tag / Byte Count / Lower Address
-
-Message
-→ Requester ID / Message Code / Message-specific content
+transaction semantic compatibility
 ```
 
-因此更准确的说法不是“3DW Header Base 有哪些字段”，而是：
+而不是：
 
-> **不同 TLP Type 对应不同 Header Base format；Header Base Size 只是这个 format 的一个属性。**
+```text
+binary header compatibility
+```
 
 ---
 
-## 8. OHC：把附加 Header 信息模块化
+## 9. Message 也有 FM Header Base
 
-OHC 全称：
+Message 并没有被排除在这套结构之外。
 
-```text
-Orthogonal Header Content
-```
-
-它不是 UIO 专属，也不是某一种 TLP 专属。
-
-OHC 的目的，是把并非每个 TLP 都需要的附加信息，从固定 Header Base 中拆出来。
-
-可以理解成：
+NFM Message：
 
 ```text
-Header Base
-    │
-    ├── 所有该 Type 都需要的核心信息
-    │
-    └── OHC presence
-             │
-             ▼
-            OHC
-             │
-             └── 按需携带扩展语义
+Fmt + Type(routing)
+Requester ID
+Message Code
+message-specific fields
 ```
 
-PCIe 6.0 还把 NFM 中原本位于 End-to-End TLP Prefix 的一些内容重新组织进 OHC；PH、Steering Tag、AMA/AV 等信息也被重新整理。
-
-所以：
-
-```text
-NFM
-3DW/4DW Header
-+ TLP Prefix
-       │
-       │ semantic re-encoding
-       ▼
-FM
-Header Base
-+ OHC
-```
-
-这里是**语义兼容**，不是 binary format 兼容。
-
----
-
-## 9. Message 也有自己的 FM Header Base
-
-Flit Mode 并不是只给 Memory Request 和 Completion 定义新的 Header。
-
-Message TLP 同样根据自己的 `Type[7:0]` 使用对应的 Header Base format。
-
-NFM Message 原本使用：
-
-```text
-Msg / MsgD
-+ routing r[2:0]
-+ Message Code
-+ Requester ID
-+ message-specific fields
-```
-
-到了 FM：
+FM Message：
 
 ```text
 Type[7:0]
-    ↓
-选择对应 Message Header Base
-    ↓
-Message Code / Requester information / routing information
-    ↓
-必要时继续带 OHC
-    ↓
-Payload（若该 Message 有 Data）
+Header Base
++ OHC (when required)
++ Payload (for MsgD-like semantics)
++ Trailer
 ```
 
-因此所有传统 transaction 都遵循同一个 FM 框架：
+所以从 FM parser 的角度，Memory / Configuration / Completion / Message / AtomicOp 等都遵循同一主线：
 
 ```text
-Type
-  ↓
-Header Base
-  ↓
-OHC
-  ↓
-Payload
-  ↓
-Trailer
+Type -> Header Base -> OHC -> Payload -> Trailer
 ```
 
 ---
 
-## 10. UIO 与 Header Base / OHC 的关系
+## 10. UIO 在哪里
 
-UIO 是另一层概念。
-
-它不是 OHC，也不是 Flit 本身，而是 PCIe 6.x Flit Mode 下新增的一组 transaction semantics。
-
-可以把关系画成：
+UIO 是 transaction / ordering semantics 层面的能力，不等于 OHC。
 
 ```text
-Transaction Layer
-│
-├── traditional PCIe transactions
-│     ├── MRd/MWr
-│     ├── Cpl
-│     ├── Cfg
-│     └── Message
-│
-└── UIO transactions
-      │
-      └── new ordering semantics
-
-所有 Flit Mode TLP
+Flit Mode TLP framework
         │
-        ▼
- Type[7:0]
- Header Base
- + OHC
- + Payload
- + Trailer
+        ├─ traditional PCIe transactions
+        │    MRd / MWr / Cpl / Cfg / Msg ...
+        │
+        └─ UIO transactions
+             new ordering semantics
 ```
 
-所以：
+UIO TLP 仍然使用 Flit Mode 的 Header Base / OHC 体系。
 
-- **TLP**：事务 packet；
-- **UIO**：定义 transaction/ordering semantics；
-- **Header Base**：该 Type 的核心 Header；
-- **OHC**：按需添加的附加 Header 信息；
-- **Flit**：承载这些 TLP 的 256B Data Stream 单元。
-
-另外，一些只存在于 Flit Mode 的新 TLP Type 没有 NFM 对应形式。这类 TLP 如果需要从 FM Egress 转到 NFM Link，协议会规定无法 translation，并触发相应的 **TLP Translation Egress Blocked** 处理。
+一些 FM-only TLP Type 没有 NFM 对应形式；当这些 TLP 试图经过 NFM Egress 时，协议可能要求阻断并报告对应的 TLP Translation Egress Blocked 条件。
 
 ---
 
-## 11. NFM → FM Translator 真正需要做什么
+## 11. 从 RTL Translator 的角度看
 
-看到很多 Type 都是 1:1，很容易误以为 translator 只需要改 Type。
-
-实际上远不止如此。
-
-完整转换逻辑更接近：
+真正的 NFM → FM translator 至少要做：
 
 ```text
-NFM TLP
-   │
-   ├─ Fmt + Type
-   ├─ Header fields
-   ├─ Prefix
-   ├─ Payload
-   └─ Digest
-          │
-          ▼
-    semantic decode
-          │
-          ▼
-FM TLP
-   │
-   ├─ Type[7:0]
-   ├─ Header Base
-   ├─ OHC
-   ├─ Payload
-   └─ Trailer
+1. decode NFM Fmt + Type
+2. recover transaction semantics
+3. map to FM Type[7:0]
+4. regenerate FM Header Base
+5. move/expand fields into OHC when required
+6. preserve payload semantics
+7. generate FM trailer-related information
 ```
 
-RTL 上至少需要完成：
+反方向也是一样：
 
 ```text
-1. Fmt + Type → FM Type[7:0]
-2. 根据 transaction semantics 重新生成 Header Base
-3. 将 NFM Prefix / 扩展信息转换到对应 OHC
-4. 重新组织 Tag、Address、Requester/Completer ID 等字段
-5. 处理 FM only 类型是否允许进入 NFM Egress
+FM Type + Header Base + OHC
+        ↓
+semantic decode
+        ↓
+NFM Fmt + Type + Header/Prefix
 ```
 
-因此：
+因此最重要的一句话是：
 
-> **FM/NFM Translation 是语义级的 Header Translation，不是字节级 Header passthrough。**
+> **NFM/FΜ Translation 是 transaction-semantic translation，不是 Header bits 的简单搬运。**
 
 ---
 
-## 12. 从设计角度最值得记住的模型
+## 12. 总结
 
-整个 PCIe 6.0 TLP 体系可以压缩成下面这张图：
-
-```text
-                 Transaction semantics
-                         │
-          ┌──────────────┴──────────────┐
-          │                             │
-         NFM                           FM
-          │                             │
-     Fmt + Type                     Type[7:0]
-          │                             │
-   3DW/4DW Header                  Header Base
-   + Prefix                        + OHC
-          │                             │
-          └──── semantic translation ──┘
-                                        │
-                                        ▼
-                                  TLP byte stream
-                                        │
-                                        ▼
-                                  packed into
-                                   256B Flit
-                                        │
-                                        ▼
-                                  PHY encoding
-```
-
-从这里也能看出：
-
-```text
-256B Flit
-≠ 128b/130b Block
-```
-
-二者处在不同层次。
-
-Flit Mode 甚至可以工作在采用 NRZ / 128b/130b PHY encoding 的较低速率下，这正说明 Flit Mode 是 Data Stream/TLP 组织机制，而不是 PHY encoding 本身。
-
----
-
-## 总结
-
-PCIe 6.0 Flit Mode 对 TLP 的核心变化可以归纳为：
-
-1. **TLP 没有消失。**
-2. NFM 使用 `Fmt[2:0] + Type[4:0]`；FM 使用 fully-decoded `Type[7:0]`。
-3. FM 的 `Type[7:0]` 同时决定 TLP 类型以及对应 Header Base format/size。
-4. Header Base 不是固定长度；不同 Type 使用不同的 Header Base。
-5. OHC 用来按需携带扩展 Header 信息，可以为 0 DW。
-6. NFM 的 Header/Prefix 信息在 FM 中被**重新编码和重新组织**，而不是原样放置。
-7. `Translation Rule = 1:1` 表示事务语义不变，不表示 Header binary format 不变。
-8. MRd32 是一个典型例外：NFM `0x00` 到 FM 必须改成 `0x03`，因为 FM `0x00` 被 NOP 使用。
-9. UIO 是新的 transaction/ordering semantics；UIO TLP 仍然使用 FM 的 Type + Header Base + OHC 框架。
-10. 完整 FM TLP 大小可以理解为：
-
-```text
-TLP Size
-=
-Header Base
-+ OHC
-+ Payload
-+ TLP Trailer
-```
-
-对于 Controller / Switch RTL，实现上最重要的思维方式是：
-
-> **先解码 transaction semantics，再生成目标 Data Stream Mode 对应的 Header；不要把 NFM↔FM Translation 理解成简单的 Header 字节搬运。**
+1. NFM 使用 `Fmt[2:0] + Type[4:0]`；FM 使用 fully-decoded `Type[7:0]`。
+2. FM 的 Type 同时决定 Header Base format 和 size。
+3. `Translation Rule = 1:1` 表示事务语义保持不变，不表示 Header binary layout 不变。
+4. MWr64 虽然 NFM/FM 都是 4DW，但字段组织已经发生变化。
+5. FM Tag 直接扩展到 14 bit。
+6. Byte Enable 等信息不再必须永久占用 Base Header；需要时可通过 OHC 携带。
+7. Completion 的变化更明显：FM 将核心 Completion 信息保留在 Base Header，把部分条件性扩展语义交给 OHC。
+8. Message、AtomicOp、UIO 等最终都落在 `Type -> Header Base -> OHC -> Payload -> Trailer` 这套 FM TLP 框架中。
+9. 256B Flit 是 Data Stream 组织单元，不是对 PHY 128b/130b block 的替代。
 
 ### 协议参考
 
-- PCI Express Base Specification Revision 5.0：Section 2.2，Non-Flit Mode `Fmt[2:0] + Type[4:0]` TLP encoding。
-- PCI Express Base Specification Revision 6.0：Section 2.2.1.2，Flit Mode common packet header fields。
-- PCI Express Base Specification Revision 6.0：Table 2-5，Flit Mode TLP Header Type Encodings / Translation Rule。
-- PCI Express Base Specification Revision 6.0：Section 2.2.7.2，Flit Mode Header Base formats。
+- PCI Express Base Specification Revision 5.0：Section 2.2，Table 2-2 / Table 2-3，Figure 2-17，Figure 2-38。
+- PCI Express Base Specification Revision 6.0：Table 2-5，Section 2.2.7.2，Figure 2-39，Figure 2-76，以及 OHC-A 相关定义。
