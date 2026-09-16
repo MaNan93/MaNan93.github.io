@@ -34,7 +34,7 @@
 </div>
 
 <style>
-#pcie-field-explorer{position:relative;margin:1.2rem 0 2rem;font-size:.94rem;--pcie-blue:#cfe5f5;--pcie-blue-hover:#bddcf1;--pcie-blue-active:#a9d2ed;--pcie-blue-border:#7fa9c7;--pcie-blue-text:#173b55;--pcie-blue-muted:#49687e;--pcie-ruler:#b8d8ee;--pcie-ruler-border:#6f9fbe}
+#pcie-field-explorer{position:relative;margin:1.2rem 0 2rem;font-size:.94rem;--pcie-blue-border:#7fa9c7;--pcie-blue-text:#173b55;--pcie-blue-muted:#49687e;--pcie-ruler:#b8d8ee;--pcie-ruler-border:#6f9fbe;--pcie-field:#ffffff;--pcie-field-hover:#f3f8fc;--pcie-field-text:#24384a;--pcie-active:#cfeecd;--pcie-active-border:#6ba66e;--pcie-active-text:#204b27}
 #pcie-field-explorer .pcie-explorer-toolbar{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
 #pcie-field-explorer select{min-width:220px;padding:.4rem .55rem;border:1px solid var(--main-border-color,#bbb);border-radius:.45rem;background:var(--main-bg,#fff);color:inherit}
 #pcie-field-explorer .pcie-type-summary{color:var(--text-muted-color,#777);font-size:.88rem}
@@ -50,17 +50,19 @@
 #pcie-field-explorer .pcie-bit-ruler{display:grid;grid-template-columns:repeat(32,1fr);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.62rem;font-weight:600;color:var(--pcie-blue-text);background:var(--pcie-ruler);border:1px solid var(--pcie-ruler-border);border-bottom:0;min-height:22px;align-items:center}
 #pcie-field-explorer .pcie-bit-ruler span{text-align:center;min-width:0;line-height:22px}
 #pcie-field-explorer .pcie-fields{display:grid;grid-template-columns:repeat(32,minmax(0,1fr));min-height:68px}
-#pcie-field-explorer .pcie-field{appearance:none;border:1px solid var(--pcie-blue-border);border-right:0;background:var(--pcie-blue);color:var(--pcie-blue-text);padding:.38rem .16rem;min-width:0;overflow:hidden;cursor:pointer;text-align:center;line-height:1.15;transition:background .12s ease,box-shadow .12s ease,filter .12s ease}
+#pcie-field-explorer .pcie-field{appearance:none;border:1px solid var(--pcie-blue-border);border-right:0;background:var(--pcie-field);color:var(--pcie-field-text);padding:.38rem .16rem;min-width:0;overflow:hidden;cursor:pointer;text-align:center;line-height:1.15;transition:background .12s ease,box-shadow .12s ease,color .12s ease}
 #pcie-field-explorer .pcie-field:last-child{border-right:1px solid var(--pcie-blue-border)}
-#pcie-field-explorer .pcie-field:hover,#pcie-field-explorer .pcie-field:focus-visible{background:var(--pcie-blue-hover);outline:2px solid #4b86b4;outline-offset:1px;z-index:2;box-shadow:0 2px 8px rgba(27,72,105,.18)}
-#pcie-field-explorer .pcie-field.is-active{background:var(--pcie-blue-active);outline:2px solid #2f75a8;outline-offset:1px;z-index:2;box-shadow:0 2px 10px rgba(27,72,105,.22)}
+#pcie-field-explorer .pcie-field:hover,#pcie-field-explorer .pcie-field:focus-visible{background:var(--pcie-field-hover);outline:2px solid #4b86b4;outline-offset:1px;z-index:2;box-shadow:0 2px 8px rgba(27,72,105,.15)}
+#pcie-field-explorer .pcie-field.is-active{background:var(--pcie-active);color:var(--pcie-active-text);border-color:var(--pcie-active-border);outline:2px solid var(--pcie-active-border);outline-offset:1px;z-index:2;box-shadow:0 2px 10px rgba(60,120,65,.2)}
 #pcie-field-explorer .pcie-field-name{display:block;font-weight:700;font-size:.8rem;white-space:normal;overflow-wrap:anywhere}
 #pcie-field-explorer .pcie-field-bits{display:block;margin-top:.16rem;font-size:.66rem;color:var(--pcie-blue-muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-#pcie-field-explorer .pcie-detail-panel{display:none;position:absolute;z-index:100;width:min(470px,calc(100% - 1rem));padding:.95rem 1.05rem;background:var(--main-bg,#fff);border:1px solid var(--pcie-ruler-border);border-radius:.65rem;box-shadow:0 12px 34px rgba(0,0,0,.24);color:inherit}
+#pcie-field-explorer .pcie-field.is-active .pcie-field-bits{color:#4f7553}
+#pcie-field-explorer .pcie-detail-panel{--pcie-arrow-left:24px;display:none;position:absolute;z-index:100;width:min(470px,calc(100% - 1rem));padding:.95rem 1.05rem;background:var(--main-bg,#fff);border:1px solid var(--pcie-ruler-border);border-radius:.65rem;box-shadow:0 12px 34px rgba(0,0,0,.24);color:inherit}
 #pcie-field-explorer .pcie-detail-panel.visible{display:block}
 #pcie-field-explorer .pcie-detail-panel h4{margin:0 0 .5rem;font-size:.98rem;color:var(--pcie-blue-text)}
 #pcie-field-explorer .pcie-detail-panel code{font-size:.88em}
-#pcie-field-explorer .pcie-detail-panel::before{content:"";position:absolute;top:-7px;left:22px;width:12px;height:12px;background:var(--main-bg,#fff);border-left:1px solid var(--pcie-ruler-border);border-top:1px solid var(--pcie-ruler-border);transform:rotate(45deg)}
+#pcie-field-explorer .pcie-detail-panel::before{content:"";position:absolute;top:-7px;left:calc(var(--pcie-arrow-left) - 6px);width:12px;height:12px;background:var(--main-bg,#fff);border-left:1px solid var(--pcie-ruler-border);border-top:1px solid var(--pcie-ruler-border);transform:rotate(45deg)}
+#pcie-field-explorer .pcie-detail-panel.arrow-bottom::before{top:auto;bottom:-7px;border-left:0;border-top:0;border-right:1px solid var(--pcie-ruler-border);border-bottom:1px solid var(--pcie-ruler-border)}
 #pcie-field-explorer .pcie-detail-row{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:.55rem;padding:.28rem 0;line-height:1.5}
 #pcie-field-explorer .pcie-detail-label{font-weight:700;color:var(--pcie-blue-muted)}
 #pcie-field-explorer .pcie-detail-bits{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;color:#2f75a8}
@@ -70,11 +72,12 @@
 #pcie-field-explorer .pcie-ohc-head{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
 #pcie-field-explorer .pcie-ohc-head h4{margin:0}
 #pcie-field-explorer .pcie-ohc-tabs{display:flex;gap:.35rem;flex-wrap:wrap}
-#pcie-field-explorer .pcie-ohc-tabs button{border:1px solid var(--pcie-blue-border);background:var(--pcie-blue);color:var(--pcie-blue-text);border-radius:999px;padding:.25rem .58rem;cursor:pointer;font-size:.78rem}
-#pcie-field-explorer .pcie-ohc-tabs button:hover{background:var(--pcie-blue-hover)}
-#pcie-field-explorer .pcie-ohc-tabs button.active{background:#4b86b4;color:#fff;border-color:#4b86b4}
+#pcie-field-explorer .pcie-ohc-tabs button{border:1px solid var(--pcie-blue-border);background:var(--pcie-field);color:var(--pcie-field-text);border-radius:999px;padding:.25rem .58rem;cursor:pointer;font-size:.78rem}
+#pcie-field-explorer .pcie-ohc-tabs button:hover{background:var(--pcie-field-hover)}
+#pcie-field-explorer .pcie-ohc-tabs button.active{background:var(--pcie-active);color:var(--pcie-active-text);border-color:var(--pcie-active-border)}
 #pcie-field-explorer .pcie-ohc-note{margin:.5rem 0 .7rem;color:var(--text-muted-color,#777);font-size:.86rem}
-html[data-mode="dark"] #pcie-field-explorer{--pcie-blue:#284d68;--pcie-blue-hover:#315d7d;--pcie-blue-active:#386b8f;--pcie-blue-border:#5f8eae;--pcie-blue-text:#eef7fc;--pcie-blue-muted:#c2dbea;--pcie-ruler:#326584;--pcie-ruler-border:#77a9c8}
+html[data-mode="dark"] #pcie-field-explorer{--pcie-blue-border:#5f8eae;--pcie-blue-text:#eef7fc;--pcie-blue-muted:#c2dbea;--pcie-ruler:#326584;--pcie-ruler-border:#77a9c8;--pcie-field:#1f242b;--pcie-field-hover:#29313a;--pcie-field-text:#e8eef4;--pcie-active:#315b38;--pcie-active-border:#6fa879;--pcie-active-text:#f0fff2}
+html[data-mode="dark"] #pcie-field-explorer .pcie-field.is-active .pcie-field-bits{color:#c7e7cc}
 html[data-mode="dark"] #pcie-field-explorer .pcie-detail-bits{color:#8fc7ed}
 @media(max-width:760px){#pcie-field-explorer .pcie-dw{min-width:640px}#pcie-field-explorer .pcie-detail-panel{width:min(390px,calc(100% - .6rem))}#pcie-field-explorer .pcie-detail-row{grid-template-columns:4.8rem minmax(0,1fr)}}
 </style>
@@ -209,8 +212,23 @@ function ohcFor(t){if(t.family==='mem32'||t.family==='mem64')return['A1','B','C'
 function bitsText(x){return x.hi===x.lo?`bit ${x.hi}`:`bits ${x.hi}:${x.lo}`}
 function bitWidth(x){return x.hi-x.lo+1}
 function ruler(){return `<div class="pcie-bit-ruler">${Array.from({length:32},(_,i)=>`<span>${31-i}</span>`).join('')}</div>`}
-function hideDetail(){const p=$('.pcie-detail-panel');p.classList.remove('visible');p.setAttribute('aria-hidden','true');root.querySelectorAll('.pcie-field.is-active').forEach(x=>x.classList.remove('is-active'))}
-function positionDetail(anchor){const panel=$('.pcie-detail-panel'),rr=root.getBoundingClientRect(),ar=anchor.getBoundingClientRect();panel.classList.add('visible');panel.setAttribute('aria-hidden','false');const pw=panel.offsetWidth,ph=panel.offsetHeight;let left=ar.left-rr.left+Math.min(ar.width/2,28)-22;left=Math.max(4,Math.min(left,root.clientWidth-pw-4));let top=ar.bottom-rr.top+10;if(top+ph>root.clientHeight&&ar.top-rr.top-ph-10>0)top=ar.top-rr.top-ph-10;panel.style.left=`${left}px`;panel.style.top=`${top}px`}
+function hideDetail(){const p=$('.pcie-detail-panel');p.classList.remove('visible','arrow-bottom');p.setAttribute('aria-hidden','true');root.querySelectorAll('.pcie-field.is-active').forEach(x=>x.classList.remove('is-active'))}
+function positionDetail(anchor){
+  const panel=$('.pcie-detail-panel'),rr=root.getBoundingClientRect(),ar=anchor.getBoundingClientRect();
+  panel.classList.add('visible');panel.setAttribute('aria-hidden','false');
+  panel.classList.remove('arrow-bottom');
+  const pw=panel.offsetWidth,ph=panel.offsetHeight;
+  const anchorCenter=ar.left-rr.left+(ar.width/2);
+  let left=anchorCenter-(pw/2);
+  left=Math.max(4,Math.min(left,root.clientWidth-pw-4));
+  const belowViewportFits=(ar.bottom+12+ph)<=window.innerHeight;
+  const aboveViewportFits=(ar.top-12-ph)>=0;
+  let top;
+  if(!belowViewportFits&&aboveViewportFits){top=ar.top-rr.top-ph-12;panel.classList.add('arrow-bottom')}else{top=ar.bottom-rr.top+12}
+  panel.style.left=`${left}px`;panel.style.top=`${top}px`;
+  const arrowLeft=Math.max(16,Math.min(anchorCenter-left,pw-16));
+  panel.style.setProperty('--pcie-arrow-left',`${arrowLeft}px`);
+}
 function renderRows(el,rows,mode,t){el.innerHTML='';rows.forEach((r,i)=>{const wrap=document.createElement('div');wrap.className='pcie-dw';wrap.innerHTML=`<div class="pcie-dw-label">DW${i}</div>${ruler()}<div class="pcie-fields"></div>`;const g=wrap.querySelector('.pcie-fields');r.forEach(x=>{const b=document.createElement('button');b.type='button';b.className='pcie-field';b.style.gridColumn=`${32-x.hi} / ${33-x.lo}`;b.innerHTML=`<span class="pcie-field-name">${x.name}</span><span class="pcie-field-bits">${x.hi===x.lo?x.hi:x.hi+':'+x.lo}</span>`;b.addEventListener('click',e=>{e.stopPropagation();root.querySelectorAll('.pcie-field.is-active').forEach(y=>y.classList.remove('is-active'));b.classList.add('is-active');showDetail(`${mode} · DW${i} · ${x.name}`,x,t,b,mode,i)});g.appendChild(b)});el.appendChild(wrap)})}
 function showDetail(title,x,t,anchor,mode,dw){$('#pcie-detail-title').textContent=title;$('#pcie-detail-body').innerHTML=`<div class="pcie-detail-row"><div class="pcie-detail-label">Bit 位置</div><div class="pcie-detail-bits">DW${dw}[${x.hi===x.lo?x.hi:x.hi+':'+x.lo}] · ${bitWidth(x)} bit${bitWidth(x)>1?'s':''}</div></div><div class="pcie-detail-row"><div class="pcie-detail-label">作用</div><div>${x.desc}</div></div>${x.extra?`<div class="pcie-detail-extra"><div class="pcie-detail-row"><div class="pcie-detail-label">协议要点</div><div>${x.extra}</div></div></div>`:''}<div class="pcie-detail-meta">${mode} · ${t.name} · NFM ${t.nfm} → FM ${t.fm}</div>`;positionDetail(anchor)}
 function renderOHC(t){const names=ohcFor(t),tabs=$('#pcie-ohc-tabs');tabs.innerHTML='';names.forEach((n,i)=>{const b=document.createElement('button');b.type='button';b.textContent='OHC-'+n;b.addEventListener('click',e=>{e.stopPropagation();drawOHC(n,t,b)});tabs.appendChild(b);if(i===0)setTimeout(()=>drawOHC(n,t,b),0)})}
