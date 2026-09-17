@@ -2,9 +2,9 @@
 title: PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换
 date: 2026-09-16 14:40:00 +0800
 categories: [PCIe, Protocol]
-tags: [PCIe, PCIe 6.0, Flit Mode, TLP, OHC, UIO]
+tags: [PCIe, PCIe 6.0, PCIe 6.2, Flit Mode, TLP, OHC, UIO]
 permalink: /pcie6-flit-tlp-header-ohc-translation/
-description: 从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.0 Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码，以及 NFM 与 FM 之间的转换关系。
+description: 从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.x Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码、NFM/FM 转换关系，以及 PCIe 6.2 UIO。
 toc: true
 ---
 
@@ -28,7 +28,7 @@ Header Base
 + TLP Trailer
 ```
 
-本文重点不是只看编码表，而是理解 **NFM TLP 到 FM TLP 的字段重组**：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移入 OHC，以及不同 TLP family 的 Header Base 怎么变化。
+本文重点不是只看编码表，而是理解 **NFM TLP 到 FM TLP 的字段重组**：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移入 OHC，以及不同 TLP family 的 Header Base 怎么变化。文末另外加入 PCIe 6.2 的 UIO，作为 Flit-only 新事务单独讨论。
 
 ---
 
@@ -164,13 +164,14 @@ FM  MRd32 = 0x03
 
 下面这块不是静态图片，而是一个可交互的 bit-field explorer：
 
-- 下拉框可以切换 MRd/MWr、I/O、Configuration、Completion、AtomicOp、Message；
-- **上方显示 NFM，下方显示 FM**，更适合当前页面宽度；
-- 每个 DW 都带 `31...0` bit ruler；
+- 下拉框分为 **PCIe 6.0 baseline** 与 **PCIe 6.2 UIO (Flit-only)** 两组；
+- 可以切换 MRd/MWr、I/O、Configuration、Completion、AtomicOp、Message，以及 UIO 五种新 TLP；
+- **上方显示 NFM，下方显示 FM**；UIO 没有 NFM 编码，因此会明确显示 Flit-only；
+- 每个 Header/OHC 表只保留一行 `31...0` bit ruler，下面连续排列各 DWORD；
 - 字段宽度按实际 bit 数显示；
 - **点击字段**会显示 bit 范围与字段含义；
-- 下方会自动列出该 TLP family 相关的 OHC；
-- 点击 `OHC-A1/A2/A3/A4/A5/B/C` 可以继续看 OHC 内部字段。
+- FM 中协议要求必须携带的 OHC 会直接跟在 Header Base 后面显示；
+- 条件式 OHC 则列在下方 `Conditional OHC` 区域。
 
 {% include pcie-nfm-fm-explorer.html %}
 
@@ -183,17 +184,13 @@ FM  MRd32 = 0x03
 - NFM 的 Tag 由 `Tag[7:0] + T8 + T9` 组成；
 - FM Header Base 直接给出 `Tag[13:0]`；
 - NFM 固定放在 Header 里的 First/Last DW Byte Enable，在 FM 中若需要显式携带，会进入 `OHC-A1`；
-- TPH 相关 `PH/ST` 信息则放入 `OHC-B`；
-- IDE / Requester Segment 相关信息则使用 `OHC-C`。
+- NFM DW0 的 `AT[1:0]` 在 FM Memory/Atomic address routing 中移动到最后一个 Address DWORD 的 `[1:0]`；
+- TPH 相关 `PH/ST` 信息放入 `OHC-B`；
+- IDE / Requester Segment 相关信息使用 `OHC-C`。
 
-再例如选择 `CplD`：
+I/O Request 是一个容易混淆的例外：FM I/O Header Base 的地址 DWORD 是 `Address[31:2] + Reserved[1:0]`，并不是 Memory Request 的 `Address[31:2] + AT[1:0]`；同时 `OHC-A2` 必须存在。
 
-- `0x4A` 本身可以保持 1:1；
-- Completion Header Base 重新组织；
-- Tag 扩展为 14 bit；
-- Completion Status、`LA[1:0]`、segment information 在需要显式携带时进入 `OHC-A5`。
-
-这比单纯画一张 NFM → FM 静态图更适合查协议，因为可以直接点字段看语义。
+Configuration Request 也重新整理了字段：NFM 中拆开的 Extended Register Number / Register Number，在 FM Header Base 中形成连续的 Register Number；`OHC-A3` 必须存在，用于 Byte Enable 以及 Destination Segment/DSV 等内容。
 
 ---
 
@@ -201,7 +198,7 @@ FM  MRd32 = 0x03
 
 OHC = **Orthogonal Header Content**。
 
-`OHC[4:0]` 指示 Header Base 后面存在哪些 OHC：
+`OHC[4:0] = 00000b` 表示没有 OHC。存在 OHC 时，`OHC[4:0]` 指示 Header Base 后面有哪些 OHC：
 
 ```text
 OHC-A
@@ -210,7 +207,7 @@ OHC-C
 OHC-E
 ```
 
-多个 OHC 同时存在时，顺序为：
+多个 OHC 同时存在时，顺序固定为：
 
 ```text
 Header Base
@@ -222,18 +219,19 @@ Header Base
 → Trailer
 ```
 
-其中 OHC-A 又会根据 TLP family 采用不同格式：
+其中 OHC-A 会根据 TLP family 采用不同格式：
 
-- `OHC-A1`：Memory Requests、Translation Requests，以及部分 Message 场景；主要承载 Byte Enables、PASID、ER、PMR、NW 等；
-- `OHC-A2`：I/O Requests，**必须存在**，主要承载 First/Last DW Byte Enable；
+- `OHC-A1`：Memory Requests、Translation Requests，以及 Address-Routed Message with PASID；可承载 Byte Enables、PASID、ER、PMR、NW 等；
+- `OHC-A2`：I/O Requests，**必须存在**，First/Last DW Byte Enable 位于 OHC DWORD 的低 8 bit；
 - `OHC-A3`：Configuration Requests，**必须存在**，承载 Byte Enables 与 Destination Segment/DSV；
 - `OHC-A4`：ID-Routed Message 在需要 Destination Segment / PASID 时使用；
 - `OHC-A5`：Completion 在协议规定的条件下使用，承载 Destination Segment、Completer Segment、Completion Status、`LA[1:0]` 等。
 
 另外：
 
-- `OHC-B` 用于 TLP Processing Hints，包含 PH、Steering Tag、HV、AMA、AV；
-- `OHC-C` 用于 IDE 以及部分 Segment 信息，包含 Requester Segment、Stream ID、Sub-Stream 等。
+- `OHC-B` 用于 TLP Processing Hints，**只适用于 Memory Address Routed Request TLP**；
+- `OHC-C` 用于 IDE 以及适用的 Requester Segment 信息；Configuration Request 仅在相应 IDE 条件下使用 OHC-C；
+- `OHC-E1/E2/E4` 也是 FM OHC 体系的一部分，但当前交互表暂未展开其内部格式。
 
 所以更准确的理解是：
 
@@ -242,7 +240,7 @@ Header Base = 当前 TLP Type 的核心字段
 OHC         = 与该事务正交、按需出现的附加 Header 信息
 ```
 
-这也是为什么很多 NFM 字段到了 FM 后看起来“消失了”——它们往往只是从固定 Header 移到了 OHC。
+“可选 OHC”并不等于发送端可以任意省略：如果某个具体 TLP 类型或条件要求某种 OHC，那么发送端必须携带它。
 
 ---
 
@@ -262,25 +260,46 @@ Msg  : 001_10rrr = 0x30 ~ 0x37
 MsgD : 011_10rrr = 0x70 ~ 0x77
 ```
 
-FM 保留对应的 fully-decoded Type 编码，同时 Message Header Base 仍然是 4DW 类格式。
+FM 保留对应的 fully-decoded Type 编码，同时 Message Header Base 仍遵循 FM Header Base + OHC 的机制。
 
-Message routing 仍由 `r[2:0]` 表达，例如 Routed to Root Complex、Routed by Address、Routed by ID、Broadcast、Local 等。不同 routing / Message 语义还会决定是否需要 `OHC-A1`、`OHC-A4`、`OHC-B` 或 `OHC-C`。
-
-因此 Message 也不是例外：
-
-```text
-Type
-→ Header Base
-→ OHC
-→ Payload（MsgD 等）
-→ Trailer
-```
+不同 routing / Message 语义会决定是否需要 `OHC-A1`、`OHC-A4` 或 `OHC-C`。需要特别注意：`OHC-B` 是 TPH 内容，只适用于 Memory Address Routed Request，不是普通 Message 的通用可选 OHC。
 
 ---
 
-## 8. 从 RTL Translator 的角度看
+## 8. PCIe 6.2 UIO：Flit-only 的新增事务
 
-真正的 NFM → FM translator 至少要做：
+UIO（Unordered I/O）不是 PCIe 6.0 baseline TLP 的普通 1:1 translation。它最初通过 UIO ECN 引入，随后并入 PCIe 6.2 Base Specification，并且只定义在 **Flit Mode**。
+
+PCIe 6.2 定义了 5 个 UIO TLP 类型：
+
+| UIO TLP | FM Type[7:0] | 作用 |
+|---|---:|---|
+| `UIOMRd` | `0x22` | UIO Memory Read |
+| `UIOMWr` | `0x61` | UIO Memory Write |
+| `UIOWrCpl` | `0x0C` | UIOMWr 的 Completion |
+| `UIORdCpl` | `0x0D` | UIO Read Completion without Data |
+| `UIORdCplD` | `0x48` | UIO Read Completion with Data |
+
+它们和传统 MRd/MWr 最大的区别之一是：
+
+```text
+UIO TLP
+→ Flit Mode only
+→ 没有对应的 NFM TLP encoding
+→ 不能直接按普通 NFM translation 转出去
+```
+
+因此交互表把 UIO 单独放在 `PCIe 6.2 UIO (Flit-only)` 分组，而不是混在 PCIe 6.0 的 NFM↔FM 对照里。
+
+另外一个容易误解的点是 `UIOMWr`：它虽然是 Write，并使用相应的 Posted-request flow-control 类别，但事务语义上会得到 `UIOWrCpl`。UIO 的 ordering model 也与传统 PCIe ordering 不同，主要目的是允许源端管理必要的顺序关系，而不是依赖 fabric 对不同路径强制维持传统顺序。
+
+UIO 的 Transaction ID 规则也单独成组：UIOWrCpl 对应的 Group II，以及 UIORdCpl/UIORdCplD 对应的 Group III，都把 `TC + Requester ID + Tag` 纳入相应的事务匹配语义。
+
+---
+
+## 9. 从 RTL Translator 的角度看
+
+传统 NFM → FM translator 至少要做：
 
 ```text
 1. decode NFM Fmt + Type
@@ -302,23 +321,26 @@ semantic decode
 NFM Fmt + Type + Header / Prefix
 ```
 
-因此最重要的一句话是：
+但 UIO 是一个重要边界条件：它是 Flit-only transaction，不能简单经过上述逆向路径生成一个“等价 NFM UIO TLP”。
+
+因此最重要的一句话仍然是：
 
 > **NFM/FM Translation 是 transaction-semantic translation，不是 Header bits 的简单搬运。**
 
 ---
 
-## 9. 总结
+## 10. 总结
 
 1. NFM 使用 `Fmt[2:0] + Type[4:0]`；FM 使用 fully-decoded `Type[7:0]`。
 2. FM 的 Type 同时决定 Header Base format 和 size。
 3. `Translation Rule = 1:1` 表示事务语义保持不变，不表示 Header binary layout 不变。
-4. Memory、I/O、Configuration、Completion、AtomicOp、Message 都可以在交互表中直接对照 bit 位置。
+4. Memory、I/O、Configuration、Completion、AtomicOp、Message 都可以在交互表中直接对照；PCIe 6.2 UIO 单独作为 Flit-only 分组。
 5. FM Tag 可直接扩展到 14 bit。
-6. Byte Enable、PASID、Segment、Completion Status、PH/ST、IDE 等附加信息会根据 TLP family 进入不同 OHC。
-7. OHC-A 不是一个固定格式，而是 A1~A5 按 TLP family 分工。
-8. Message 也使用 FM Header Base + OHC 框架，并保留 routing 语义。
-9. 完整 FM TLP 大小仍然是：
+6. Memory/Atomic Request 的 `AT` 从 NFM DW0 移到 FM 最后一个 Address DWORD 的 `[1:0]`；I/O 对应低 2 bit 为 Reserved。
+7. Byte Enable、PASID、Segment、Completion Status、PH/ST、IDE 等附加信息会根据 TLP family 进入不同 OHC。
+8. OHC-A 不是一个固定格式，而是 A1~A5 按 TLP family 分工；协议要求 mandatory 的 OHC 必须携带。
+9. UIO 定义了 UIOMRd、UIOMWr 和三种 UIO Completion，没有直接 NFM 编码。
+10. 完整 FM TLP 大小仍然是：
 
 ```text
 Header Base + OHC + Payload + TLP Trailer
@@ -327,4 +349,5 @@ Header Base + OHC + Payload + TLP Trailer
 ### 协议参考
 
 - PCI Express Base Specification Revision 5.0：Section 2.2，NFM TLP Header、Memory/I/O/Configuration/Message/Completion Header formats。
-- PCI Express Base Specification Revision 6.0：Section 2.2.1.2、Table 2-5、Table 2-6、Figure 2-6 ~ Figure 2-13、Section 2.2.7.2，以及 Message / Completion 的 Flit Mode Header Base 定义。
+- PCI Express Base Specification Revision 6.0：Flit Mode First DW、OHC-A1~A5/OHC-B/OHC-C、Memory/I/O/Configuration/Message/Completion Header Base 与 NFM/FM translation rules。
+- PCI Express Unordered IO (UIO) ECN；PCI Express Base Specification Revision 6.2：UIO TLP types、Transaction ID groups、Flit-only / egress handling rules。
