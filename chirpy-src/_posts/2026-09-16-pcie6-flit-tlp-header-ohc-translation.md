@@ -33,11 +33,44 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
     <strong>NFM DW1~3</strong>
     <small>Requester ID / Tag / Address / Byte Enable 等固定 Header 内容</small>
   </button>
-  <div class="nfm-fm-link">字段重组 →</div>
+  <button type="button" class="nfm-fm-link nfm-fm-expand-toggle" id="nfm-fm-expand-toggle" aria-expanded="false" aria-controls="nfm-fm-expand-panel">字段重组 ↓</button>
   <button type="button" class="nfm-fm-cell" data-detail="fm-ohc">
-    <strong>FM OHC</strong>
-    <small>条件式 / 正交扩展字段；核心 Requester ID / Tag / Address 等仍保留在 Header Base</small>
+    <strong>FM Header Base (DW1+) + OHC</strong>
+    <small>核心字段留在 Header Base；条件式 / 正交扩展语义进入 OHC</small>
   </button>
+
+  <div id="nfm-fm-expand-panel" class="nfm-fm-expand" hidden>
+    <div class="nfm-fm-expand-title">NFM 后续 Header / Prefix 语义如何重组到 FM</div>
+    <div class="nfm-fm-expand-grid">
+      <div class="nfm-fm-expand-col">
+        <strong>NFM：DW1~3 / End-End Prefix</strong>
+        <span>Requester ID</span>
+        <span>Tag[7:0] + T8/T9</span>
+        <span>Address</span>
+        <span>First / Last DW Byte Enable</span>
+        <span>AT</span>
+        <span>PASID / TPH / IDE / Segment 等扩展语义</span>
+      </div>
+      <div class="nfm-fm-expand-arrow">→</div>
+      <div class="nfm-fm-expand-col">
+        <strong>FM：仍在 Header Base</strong>
+        <span>Requester ID</span>
+        <span>Tag[13:0]</span>
+        <span>Address</span>
+        <span>family-specific 核心字段</span>
+        <span>Memory/Atomic 的 AT → 最后一个 Address DWORD[1:0]</span>
+      </div>
+      <div class="nfm-fm-expand-col">
+        <strong>FM：进入 OHC</strong>
+        <span>Byte Enable（按 family 使用 OHC-A）</span>
+        <span>PASID</span>
+        <span>TPH</span>
+        <span>IDE / Segment</span>
+        <span>其他按条件出现的 orthogonal header content</span>
+      </div>
+    </div>
+    <p>这里是<strong>语义重组</strong>，不是固定的 bit-for-bit 或 DWORD-for-DWORD 映射；具体字段位置取决于 TLP family。</p>
+  </div>
 
   <button type="button" class="nfm-fm-cell" data-detail="nfm-payload">
     <strong>Payload</strong>
@@ -69,8 +102,7 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 <style>
 #nfm-fm-structure{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 8.5rem minmax(0,1fr);gap:.55rem;align-items:stretch;margin:1rem 0 1.1rem}
 #nfm-fm-structure .nfm-fm-head{padding:.52rem .7rem;text-align:center;font-weight:700;border:1px solid var(--main-border-color,#d7dce1);background:rgba(127,169,199,.18)}
-#nfm-fm-structure .nfm-fm-head-left{border-radius:.65rem .65rem 0 0}
-#nfm-fm-structure .nfm-fm-head-right{border-radius:.65rem .65rem 0 0}
+#nfm-fm-structure .nfm-fm-head-left,#nfm-fm-structure .nfm-fm-head-right{border-radius:.65rem .65rem 0 0}
 #nfm-fm-structure .nfm-fm-head-mid{border:0;background:transparent;color:var(--text-muted-color,#777);font-size:.8rem;font-weight:600}
 #nfm-fm-structure .nfm-fm-cell{appearance:none;width:100%;padding:.72rem .75rem;border:1px solid var(--main-border-color,#d7dce1);border-radius:.5rem;background:var(--main-bg,#fff);color:inherit;text-align:center;cursor:pointer;line-height:1.3}
 #nfm-fm-structure .nfm-fm-cell:hover,#nfm-fm-structure .nfm-fm-cell:focus-visible{border-color:#4b86b4;background:rgba(127,169,199,.08);outline:2px solid rgba(75,134,180,.42);outline-offset:-2px}
@@ -80,12 +112,22 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 #nfm-fm-structure .nfm-fm-cell-key{background:rgba(127,169,199,.08)}
 #nfm-fm-structure .nfm-fm-code{display:block;margin-top:.3rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9rem}
 #nfm-fm-structure .nfm-fm-code b{color:#2f75a8}
-#nfm-fm-structure .nfm-fm-link{display:flex;align-items:center;justify-content:center;padding:.4rem;color:var(--text-muted-color,#777);font-size:.76rem;text-align:center}
-#nfm-fm-structure .nfm-fm-detail{grid-column:1 / -1;position:relative;margin-top:.25rem;padding:.85rem 1rem;border:1px solid #7fa9c7;border-radius:.6rem;background:var(--main-bg,#fff);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+#nfm-fm-structure .nfm-fm-link{display:flex;align-items:center;justify-content:center;padding:.4rem;color:var(--text-muted-color,#777);font-size:.76rem;text-align:center;border:0;background:transparent}
+#nfm-fm-structure .nfm-fm-expand-toggle{cursor:pointer;border-radius:.4rem;font:inherit}
+#nfm-fm-structure .nfm-fm-expand-toggle:hover,#nfm-fm-structure .nfm-fm-expand-toggle:focus-visible{color:#2f75a8;background:rgba(127,169,199,.08);outline:none}
+#nfm-fm-structure .nfm-fm-expand{grid-column:1/-1;padding:.9rem 1rem;border:1px solid var(--main-border-color,#d7dce1);border-radius:.65rem;background:rgba(127,169,199,.045)}
+#nfm-fm-structure .nfm-fm-expand-title{text-align:center;font-weight:700;margin-bottom:.7rem}
+#nfm-fm-structure .nfm-fm-expand-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) minmax(0,1fr);gap:.65rem;align-items:stretch}
+#nfm-fm-structure .nfm-fm-expand-col{display:flex;flex-direction:column;gap:.3rem;padding:.7rem;border:1px solid var(--main-border-color,#e1e5e8);border-radius:.5rem;background:var(--main-bg,#fff)}
+#nfm-fm-structure .nfm-fm-expand-col strong{text-align:center;margin-bottom:.15rem}
+#nfm-fm-structure .nfm-fm-expand-col span{font-size:.82rem;line-height:1.35}
+#nfm-fm-structure .nfm-fm-expand-arrow{display:flex;align-items:center;justify-content:center;font-size:1.35rem;color:#4b86b4}
+#nfm-fm-structure .nfm-fm-expand p{margin:.65rem 0 0;text-align:center;font-size:.82rem;color:var(--text-muted-color,#777)}
+#nfm-fm-structure .nfm-fm-detail{grid-column:1/-1;position:relative;margin-top:.25rem;padding:.85rem 1rem;border:1px solid #7fa9c7;border-radius:.6rem;background:var(--main-bg,#fff);box-shadow:0 8px 24px rgba(0,0,0,.12)}
 #nfm-fm-structure .nfm-fm-detail h4{margin:0 2rem .35rem 0;font-size:.95rem;color:#2f75a8}
 #nfm-fm-structure .nfm-fm-detail p{margin:.35rem 0;line-height:1.55}
 #nfm-fm-structure .nfm-fm-detail-close{position:absolute;right:.6rem;top:.45rem;border:0;background:transparent;color:var(--text-muted-color,#777);font-size:1.35rem;cursor:pointer}
-@media(max-width:720px){#nfm-fm-structure{grid-template-columns:1fr;gap:.45rem}#nfm-fm-structure .nfm-fm-head-mid{display:none}#nfm-fm-structure .nfm-fm-head-left{order:0}#nfm-fm-structure .nfm-fm-head-right{order:0}#nfm-fm-structure .nfm-fm-link{padding:.15rem}#nfm-fm-structure .nfm-fm-link::after{content:""}#nfm-fm-structure .nfm-fm-detail{grid-column:1}}
+@media(max-width:720px){#nfm-fm-structure{grid-template-columns:1fr;gap:.45rem}#nfm-fm-structure .nfm-fm-head-mid{display:none}#nfm-fm-structure .nfm-fm-link{padding:.15rem}#nfm-fm-structure .nfm-fm-expand{grid-column:1}#nfm-fm-structure .nfm-fm-expand-grid{grid-template-columns:1fr}#nfm-fm-structure .nfm-fm-expand-arrow{transform:rotate(90deg)}}
 </style>
 
 <script>
@@ -96,11 +138,13 @@ root.dataset.ready='1';
 const detail=root.querySelector('#nfm-fm-detail');
 const title=root.querySelector('#nfm-fm-detail-title');
 const body=root.querySelector('#nfm-fm-detail-body');
+const expandToggle=root.querySelector('#nfm-fm-expand-toggle');
+const expandPanel=root.querySelector('#nfm-fm-expand-panel');
 const explanations={
   'nfm-dw0':{title:'NFM DW0：Fmt + Type',body:'NFM 的第一个 DWORD 同时包含 Fmt[2:0] 与 Type[4:0]。Fmt 负责表达 3DW/4DW 以及是否带 Data，Type 再与 Fmt 一起确定具体 TLP 类型。因此 NFM 的事务类型解码依赖 Fmt + Type 的组合。'},
   'fm-hb':{title:'FM Header Base：Type[7:0]',body:'Flit Mode 不再使用独立的 Fmt 字段，而是在 Header Base DW0 中使用 fully-decoded Type[7:0]。Type 直接选择 transaction type，并决定对应 Header Base 的 format/size。MRd32 是典型例外：NFM Byte0=0x00，而 FM 中 0x00 用作 NOP，因此 FM MRd32 改为 0x03。'},
-  'nfm-dw13':{title:'NFM DW1~3：固定 Header 的主要事务字段',body:'NFM 后续 DWORD 根据 TLP family 承载 Requester ID、Tag、Address、Byte Enable、Configuration Register Number、Completion 信息等。这里的“DW1~3”是结构归纳，不表示所有 TLP 都恰好使用相同字段或相同 DW 数量；4DW Header 还会包含完整的第 4 个 DWORD。'},
-  'fm-ohc':{title:'FM OHC：条件式 / 正交 Header 内容',body:'这不是“NFM DW1~3 全部搬到 OHC”的一一映射。Requester ID、Tag、Address 等事务核心字段仍保留在 FM Header Base 的后续 DWORD；Byte Enable、PASID、TPH、IDE、Segment 等条件式或扩展语义则按 TLP family 进入 OHC-A/B/C/E。NFM 的 End-End TLP Prefix 语义也会在 FM 中重组进 Header/OHC。'},
+  'nfm-dw13':{title:'NFM DW1~3：固定 Header 的主要事务字段',body:'NFM 后续 DWORD 根据 TLP family 承载 Requester ID、Tag、Address、Byte Enable、Configuration Register Number、Completion 信息等。这里的“DW1~3”是结构归纳；这些字段到 FM 后会被拆分到 Header Base 与 OHC，而不是整体搬进 OHC。'},
+  'fm-ohc':{title:'FM Header Base (DW1+) + OHC',body:'Requester ID、Tag、Address 等事务核心字段仍保留在 FM Header Base 的后续 DWORD；Byte Enable、PASID、TPH、IDE、Segment 等条件式或扩展语义则按 TLP family 进入 OHC-A/B/C/E。NFM 的 End-End TLP Prefix 语义也会在 FM 中重组进 Header/OHC。'},
   'nfm-payload':{title:'NFM Payload',body:'当 TLP 类型带 Data 时，Payload 位于 Header（以及适用的 Prefix）之后。Length 字段描述 Data Payload 的 DWORD 数量，Header 和 Prefix 本身不计入 Payload。'},
   'fm-payload':{title:'FM Payload',body:'Flit Mode 中 Payload 的事务语义保持不变，仍然是 TLP 的 Data Payload。Header Base、OHC 与 Trailer 均不属于 Payload；整个 TLP 再被装入 256B Flit 的 TLP 区域。'},
   'nfm-ecrc':{title:'NFM TLP Digest / ECRC',body:'Non-Flit Mode 中 TD 位指示 TLP Digest 是否存在。TD=1 时，32-bit ECRC 作为 TLP Digest 附加在 TLP 尾部，用于端到端完整性检查。'},
@@ -117,41 +161,16 @@ root.querySelectorAll('.nfm-fm-cell').forEach(btn=>btn.addEventListener('click',
   detail.hidden=false;
 }));
 root.querySelector('.nfm-fm-detail-close').addEventListener('click',closeDetail);
+expandToggle.addEventListener('click',()=>{
+  const open=expandPanel.hidden;
+  expandPanel.hidden=!open;
+  expandToggle.setAttribute('aria-expanded',String(open));
+  expandToggle.textContent=open?'收起字段重组 ↑':'字段重组 ↓';
+});
 })();
 </script>
 
-这里要特别区分两类 Prefix：**Flit Mode 仍可保留 Local Vendor-Defined TLP Prefix**；NFM 中的 **End-End TLP Prefix 内容**则在 FM 中重组进 Header/OHC。也就是说，不能简单理解成“FM 把所有 TLP Prefix 都替换成 OHC”。
-
-本文重点不是只看编码表，而是理解 **NFM TLP 到 FM TLP 的字段重组**：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移入 OHC，以及不同 TLP family 的 Header Base 怎么变化。文末另外加入 PCIe 6.2 的 UIO，作为 Flit-only 新事务单独讨论。
-
-### 先看 NFM 与 FM 到底改了什么
-
-如果先不看具体 bit，NFM 与 FM 的差异可以概括成下面几项：
-
-| 维度 | Non-Flit Mode | Flit Mode |
-|---|---|---|
-| TLP 类型编码 | `Fmt[2:0] + Type[4:0]` | fully-decoded `Type[7:0]` |
-| Header 组织 | 固定 3DW / 4DW Header | `Header Base + OHC` |
-| Prefix / 附加信息 | Local / End-End TLP Prefix；部分信息也位于固定 Header | Local Vendor-Defined TLP Prefix 仍可存在；End-End Prefix 内容以及其他正交信息通过 OHC 表达 |
-| Header 长度来源 | `Fmt` 明确区分 3DW / 4DW | 由 `Type[7:0]` 直接决定 Header Base format/size |
-| Byte Enable | Memory/I/O/Config Request 的固定 Header 字段 | 根据 TLP family 移入对应 OHC-A |
-| Tag | `Tag[7:0]`，再由 `T8/T9` 扩展 | Header Base 中连续的 `Tag[13:0]` |
-| Address Type | NFM DW0 中的 `AT[1:0]` | Memory/Atomic 中移到最后一个 Address DWORD `[1:0]` |
-| TPH / PASID / IDE 等 | Header / Prefix 中分散表达 | 按用途拆到 OHC-A/B/C |
-| ECRC / Trailer | `TD` 指示 TLP Digest | `TS[2:0]` 描述 FM Trailer |
-| 新事务扩展 | 受传统 Fmt/Type 结构约束 | 可直接定义新的 FM Type，例如 PCIe 6.2 UIO |
-
-因此，PCIe 6 的核心变化不是“把 3DW/4DW 换成另一套固定 Header”，而是把传统 Header 拆成两层：
-
-```text
-Header Base
-= 当前 transaction 必须具备的核心字段
-
-OHC
-= 只有在对应 feature / condition 存在时才携带的附加 Header 内容
-```
-
-后面的 `Type[7:0]`、OHC-A1~A5、OHC-B/C、NFM↔FM translation，其实都可以沿着这条主线理解。
+> **Prefix 仍需单独看待：** Flit Mode 仍可保留 Local Vendor-Defined TLP Prefix；NFM 中的 End-End TLP Prefix 内容则在 FM 中重组进 Header/OHC。因此不能理解成“FM 把所有 Prefix 都替换成 OHC”。
 
 ---
 
