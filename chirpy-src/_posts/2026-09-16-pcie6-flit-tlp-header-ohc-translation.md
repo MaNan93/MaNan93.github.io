@@ -15,9 +15,14 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 <div class="nfm-fm-overview">
   <div class="nfm-fm-card">
     <div class="nfm-fm-title">Non-Flit Mode</div>
-    <div class="nfm-fm-row"><code>Fmt[2:0] + Type[4:0]</code></div>
-    <div class="nfm-fm-row">3DW / 4DW Header</div>
-    <div class="nfm-fm-row">optional TLP Prefix</div>
+    <div class="nfm-fm-order">serialized order ↓</div>
+    <div class="nfm-fm-row nfm-fm-optional">Optional TLP Prefix</div>
+    <div class="nfm-fm-row">
+      <strong>TLP Header · 3DW / 4DW</strong>
+      <small>DW0 contains <code>Fmt[2:0] + Type[4:0]</code></small>
+    </div>
+    <div class="nfm-fm-row nfm-fm-optional">Payload · if present</div>
+    <div class="nfm-fm-row nfm-fm-optional">TLP Digest / ECRC · if <code>TD=1</code></div>
   </div>
 
   <div class="nfm-fm-arrow">
@@ -27,11 +32,14 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 
   <div class="nfm-fm-card">
     <div class="nfm-fm-title">Flit Mode</div>
-    <div class="nfm-fm-row"><code>Type[7:0]</code></div>
-    <div class="nfm-fm-row">Header Base</div>
-    <div class="nfm-fm-row">+ OHC</div>
-    <div class="nfm-fm-row">+ Payload</div>
-    <div class="nfm-fm-row">+ TLP Trailer</div>
+    <div class="nfm-fm-order">serialized order ↓</div>
+    <div class="nfm-fm-row">
+      <strong>Header Base</strong>
+      <small>DW0 contains <code>Type[7:0]</code></small>
+    </div>
+    <div class="nfm-fm-row nfm-fm-optional">OHC · if present / required</div>
+    <div class="nfm-fm-row nfm-fm-optional">Payload · if present</div>
+    <div class="nfm-fm-row nfm-fm-optional">TLP Trailer · according to <code>TS[2:0]</code></div>
   </div>
 </div>
 
@@ -39,8 +47,12 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 .nfm-fm-overview{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:1rem;align-items:stretch;margin:1rem 0 1.4rem}
 .nfm-fm-card{border:1px solid var(--main-border-color,#d7dce1);border-radius:.7rem;overflow:hidden;background:var(--main-bg,#fff)}
 .nfm-fm-title{padding:.55rem .8rem;font-weight:700;text-align:center;background:rgba(127,169,199,.18);border-bottom:1px solid var(--main-border-color,#d7dce1)}
-.nfm-fm-row{padding:.5rem .75rem;text-align:center;border-top:1px solid var(--main-border-color,#e3e6e8)}
+.nfm-fm-order{padding:.3rem .75rem;text-align:center;color:var(--text-muted-color,#777);font-size:.74rem;border-bottom:1px dashed var(--main-border-color,#d7dce1)}
+.nfm-fm-row{padding:.58rem .75rem;text-align:center;border-top:1px solid var(--main-border-color,#e3e6e8)}
 .nfm-fm-row:first-of-type{border-top:0}
+.nfm-fm-row strong{display:block}
+.nfm-fm-row small{display:block;margin-top:.18rem;color:var(--text-muted-color,#777)}
+.nfm-fm-optional{color:var(--text-muted-color,#666)}
 .nfm-fm-arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;min-width:7rem;color:var(--text-muted-color,#777);font-size:.78rem;text-align:center}
 .nfm-fm-arrow strong{font-size:1.6rem;line-height:1;color:#4b86b4}
 @media(max-width:720px){.nfm-fm-overview{grid-template-columns:1fr}.nfm-fm-arrow{min-width:0;padding:.1rem 0}.nfm-fm-arrow strong{transform:rotate(90deg)}}
