@@ -30,6 +30,35 @@ Header Base
 
 本文重点不是只看编码表，而是理解 **NFM TLP 到 FM TLP 的字段重组**：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移入 OHC，以及不同 TLP family 的 Header Base 怎么变化。文末另外加入 PCIe 6.2 的 UIO，作为 Flit-only 新事务单独讨论。
 
+### 先看 NFM 与 FM 到底改了什么
+
+如果先不看具体 bit，NFM 与 FM 的差异可以概括成下面几项：
+
+| 维度 | Non-Flit Mode | Flit Mode |
+|---|---|---|
+| TLP 类型编码 | `Fmt[2:0] + Type[4:0]` | fully-decoded `Type[7:0]` |
+| Header 组织 | 固定 3DW / 4DW Header | `Header Base + OHC` |
+| 可选附加信息 | TLP Prefix / 固定 Header 中预留字段 | OHC-A/B/C/E 按需出现 |
+| Header 长度来源 | `Fmt` 明确区分 3DW / 4DW | 由 `Type[7:0]` 直接决定 Header Base format/size |
+| Byte Enable | Memory/I/O/Config Request 的固定 Header 字段 | 根据 TLP family 移入对应 OHC-A |
+| Tag | `Tag[7:0]`，再由 `T8/T9` 扩展 | Header Base 中连续的 `Tag[13:0]` |
+| Address Type | NFM DW0 中的 `AT[1:0]` | Memory/Atomic 中移到最后一个 Address DWORD `[1:0]` |
+| TPH / PASID / IDE 等 | Header / Prefix 中分散表达 | 按用途拆到 OHC-A/B/C |
+| ECRC / Trailer | `TD` 指示 TLP Digest | `TS[2:0]` 描述 FM Trailer |
+| 新事务扩展 | 受传统 Fmt/Type 结构约束 | 可直接定义新的 FM Type，例如 PCIe 6.2 UIO |
+
+因此，PCIe 6 的核心变化不是“把 3DW/4DW 换成另一套固定 Header”，而是把传统 Header 拆成两层：
+
+```text
+Header Base
+= 当前 transaction 必须具备的核心字段
+
+OHC
+= 只有在对应 feature / condition 存在时才携带的附加 Header 内容
+```
+
+后面的 `Type[7:0]`、OHC-A1~A5、OHC-B/C、NFM↔FM translation，其实都可以沿着这条主线理解。
+
 ---
 
 ## 1. Flit Mode TLP 的组成
