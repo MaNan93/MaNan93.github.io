@@ -12,49 +12,113 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 
 最重要的主线是：
 
-<div class="nfm-fm-overview">
-  <div class="nfm-fm-card">
-    <div class="nfm-fm-title">Non-Flit Mode</div>
-    <div class="nfm-fm-row nfm-fm-optional">Optional Local / End-End TLP Prefix</div>
-    <div class="nfm-fm-row">
-      <strong>TLP Header · 3DW / 4DW</strong>
-      <small>DW0 contains <code>Fmt[2:0] + Type[4:0]</code></small>
-    </div>
-    <div class="nfm-fm-row nfm-fm-optional">Payload · if present</div>
-    <div class="nfm-fm-row nfm-fm-optional">TLP Digest / ECRC · if <code>TD=1</code></div>
-  </div>
+<div id="nfm-fm-structure" class="nfm-fm-structure">
+  <div class="nfm-fm-head nfm-fm-head-left">Non-Flit Mode</div>
+  <div class="nfm-fm-head nfm-fm-head-mid">结构变化</div>
+  <div class="nfm-fm-head nfm-fm-head-right">Flit Mode</div>
 
-  <div class="nfm-fm-arrow">
-    <span>semantic translation</span>
-    <strong>→</strong>
-  </div>
+  <button type="button" class="nfm-fm-cell nfm-fm-cell-key" data-detail="nfm-dw0">
+    <strong>NFM DW0</strong>
+    <span class="nfm-fm-code"><b>Fmt[2:0]</b> + <b>Type[4:0]</b></span>
+    <small>同时编码 Header 长度 / Data 属性与事务类型</small>
+  </button>
+  <div class="nfm-fm-link">类型编码重构 →</div>
+  <button type="button" class="nfm-fm-cell nfm-fm-cell-key" data-detail="fm-hb">
+    <strong>FM Header Base</strong>
+    <span class="nfm-fm-code">DW0: <b>Type[7:0]</b></span>
+    <small>fully-decoded Type，Header Base format/size 由 Type 决定</small>
+  </button>
 
-  <div class="nfm-fm-card">
-    <div class="nfm-fm-title">Flit Mode</div>
-    <div class="nfm-fm-row nfm-fm-optional">Optional Local Vendor-Defined TLP Prefix</div>
-    <div class="nfm-fm-row">
-      <strong>Header Base</strong>
-      <small>DW0 contains <code>Type[7:0]</code></small>
-    </div>
-    <div class="nfm-fm-row nfm-fm-optional">OHC · End-End prefix semantics and other orthogonal content</div>
-    <div class="nfm-fm-row nfm-fm-optional">Payload · if present</div>
-    <div class="nfm-fm-row nfm-fm-optional">TLP Trailer · according to <code>TS[2:0]</code></div>
+  <button type="button" class="nfm-fm-cell" data-detail="nfm-dw13">
+    <strong>NFM DW1~3</strong>
+    <small>Requester ID / Tag / Address / Byte Enable 等固定 Header 内容</small>
+  </button>
+  <div class="nfm-fm-link">字段重组 →</div>
+  <button type="button" class="nfm-fm-cell" data-detail="fm-ohc">
+    <strong>FM OHC</strong>
+    <small>条件式 / 正交扩展字段；核心 Requester ID / Tag / Address 等仍保留在 Header Base</small>
+  </button>
+
+  <button type="button" class="nfm-fm-cell" data-detail="nfm-payload">
+    <strong>Payload</strong>
+    <small>存在 Data 时的事务数据</small>
+  </button>
+  <div class="nfm-fm-link">语义保持 →</div>
+  <button type="button" class="nfm-fm-cell" data-detail="fm-payload">
+    <strong>Payload</strong>
+    <small>仍是 TLP 的 Data Payload</small>
+  </button>
+
+  <button type="button" class="nfm-fm-cell" data-detail="nfm-ecrc">
+    <strong>TLP Digest / ECRC</strong>
+    <small><code>TD=1</code> 时位于 NFM TLP 尾部</small>
+  </button>
+  <div class="nfm-fm-link">尾部机制扩展 →</div>
+  <button type="button" class="nfm-fm-cell" data-detail="fm-trailer">
+    <strong>TLP Trailer</strong>
+    <small>由 <code>TS[2:0]</code> 指示类型 / 长度</small>
+  </button>
+
+  <div id="nfm-fm-detail" class="nfm-fm-detail" aria-live="polite" hidden>
+    <button type="button" class="nfm-fm-detail-close" aria-label="关闭字段说明">×</button>
+    <h4 id="nfm-fm-detail-title"></h4>
+    <div id="nfm-fm-detail-body"></div>
   </div>
 </div>
 
 <style>
-.nfm-fm-overview{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:1rem;align-items:stretch;margin:1rem 0 1.4rem}
-.nfm-fm-card{border:1px solid var(--main-border-color,#d7dce1);border-radius:.7rem;overflow:hidden;background:var(--main-bg,#fff)}
-.nfm-fm-title{padding:.55rem .8rem;font-weight:700;text-align:center;background:rgba(127,169,199,.18);border-bottom:1px solid var(--main-border-color,#d7dce1)}
-.nfm-fm-row{padding:.58rem .75rem;text-align:center;border-top:1px solid var(--main-border-color,#e3e6e8)}
-.nfm-fm-row:first-of-type{border-top:0}
-.nfm-fm-row strong{display:block}
-.nfm-fm-row small{display:block;margin-top:.18rem;color:var(--text-muted-color,#777)}
-.nfm-fm-optional{color:var(--text-muted-color,#666)}
-.nfm-fm-arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;min-width:7rem;color:var(--text-muted-color,#777);font-size:.78rem;text-align:center}
-.nfm-fm-arrow strong{font-size:1.6rem;line-height:1;color:#4b86b4}
-@media(max-width:720px){.nfm-fm-overview{grid-template-columns:1fr}.nfm-fm-arrow{min-width:0;padding:.1rem 0}.nfm-fm-arrow strong{transform:rotate(90deg)}}
+#nfm-fm-structure{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 8.5rem minmax(0,1fr);gap:.55rem;align-items:stretch;margin:1rem 0 1.1rem}
+#nfm-fm-structure .nfm-fm-head{padding:.52rem .7rem;text-align:center;font-weight:700;border:1px solid var(--main-border-color,#d7dce1);background:rgba(127,169,199,.18)}
+#nfm-fm-structure .nfm-fm-head-left{border-radius:.65rem .65rem 0 0}
+#nfm-fm-structure .nfm-fm-head-right{border-radius:.65rem .65rem 0 0}
+#nfm-fm-structure .nfm-fm-head-mid{border:0;background:transparent;color:var(--text-muted-color,#777);font-size:.8rem;font-weight:600}
+#nfm-fm-structure .nfm-fm-cell{appearance:none;width:100%;padding:.72rem .75rem;border:1px solid var(--main-border-color,#d7dce1);border-radius:.5rem;background:var(--main-bg,#fff);color:inherit;text-align:center;cursor:pointer;line-height:1.3}
+#nfm-fm-structure .nfm-fm-cell:hover,#nfm-fm-structure .nfm-fm-cell:focus-visible{border-color:#4b86b4;background:rgba(127,169,199,.08);outline:2px solid rgba(75,134,180,.42);outline-offset:-2px}
+#nfm-fm-structure .nfm-fm-cell.is-active{border-color:#6ba66e;background:rgba(107,166,110,.16);outline:2px solid rgba(107,166,110,.42);outline-offset:-2px}
+#nfm-fm-structure .nfm-fm-cell strong{display:block;font-size:.95rem}
+#nfm-fm-structure .nfm-fm-cell small{display:block;margin-top:.26rem;color:var(--text-muted-color,#777);font-size:.78rem}
+#nfm-fm-structure .nfm-fm-cell-key{background:rgba(127,169,199,.08)}
+#nfm-fm-structure .nfm-fm-code{display:block;margin-top:.3rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9rem}
+#nfm-fm-structure .nfm-fm-code b{color:#2f75a8}
+#nfm-fm-structure .nfm-fm-link{display:flex;align-items:center;justify-content:center;padding:.4rem;color:var(--text-muted-color,#777);font-size:.76rem;text-align:center}
+#nfm-fm-structure .nfm-fm-detail{grid-column:1 / -1;position:relative;margin-top:.25rem;padding:.85rem 1rem;border:1px solid #7fa9c7;border-radius:.6rem;background:var(--main-bg,#fff);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+#nfm-fm-structure .nfm-fm-detail h4{margin:0 2rem .35rem 0;font-size:.95rem;color:#2f75a8}
+#nfm-fm-structure .nfm-fm-detail p{margin:.35rem 0;line-height:1.55}
+#nfm-fm-structure .nfm-fm-detail-close{position:absolute;right:.6rem;top:.45rem;border:0;background:transparent;color:var(--text-muted-color,#777);font-size:1.35rem;cursor:pointer}
+@media(max-width:720px){#nfm-fm-structure{grid-template-columns:1fr;gap:.45rem}#nfm-fm-structure .nfm-fm-head-mid{display:none}#nfm-fm-structure .nfm-fm-head-left{order:0}#nfm-fm-structure .nfm-fm-head-right{order:0}#nfm-fm-structure .nfm-fm-link{padding:.15rem}#nfm-fm-structure .nfm-fm-link::after{content:""}#nfm-fm-structure .nfm-fm-detail{grid-column:1}}
 </style>
+
+<script>
+(()=>{
+const root=document.getElementById('nfm-fm-structure');
+if(!root||root.dataset.ready)return;
+root.dataset.ready='1';
+const detail=root.querySelector('#nfm-fm-detail');
+const title=root.querySelector('#nfm-fm-detail-title');
+const body=root.querySelector('#nfm-fm-detail-body');
+const explanations={
+  'nfm-dw0':{title:'NFM DW0：Fmt + Type',body:'NFM 的第一个 DWORD 同时包含 Fmt[2:0] 与 Type[4:0]。Fmt 负责表达 3DW/4DW 以及是否带 Data，Type 再与 Fmt 一起确定具体 TLP 类型。因此 NFM 的事务类型解码依赖 Fmt + Type 的组合。'},
+  'fm-hb':{title:'FM Header Base：Type[7:0]',body:'Flit Mode 不再使用独立的 Fmt 字段，而是在 Header Base DW0 中使用 fully-decoded Type[7:0]。Type 直接选择 transaction type，并决定对应 Header Base 的 format/size。MRd32 是典型例外：NFM Byte0=0x00，而 FM 中 0x00 用作 NOP，因此 FM MRd32 改为 0x03。'},
+  'nfm-dw13':{title:'NFM DW1~3：固定 Header 的主要事务字段',body:'NFM 后续 DWORD 根据 TLP family 承载 Requester ID、Tag、Address、Byte Enable、Configuration Register Number、Completion 信息等。这里的“DW1~3”是结构归纳，不表示所有 TLP 都恰好使用相同字段或相同 DW 数量；4DW Header 还会包含完整的第 4 个 DWORD。'},
+  'fm-ohc':{title:'FM OHC：条件式 / 正交 Header 内容',body:'这不是“NFM DW1~3 全部搬到 OHC”的一一映射。Requester ID、Tag、Address 等事务核心字段仍保留在 FM Header Base 的后续 DWORD；Byte Enable、PASID、TPH、IDE、Segment 等条件式或扩展语义则按 TLP family 进入 OHC-A/B/C/E。NFM 的 End-End TLP Prefix 语义也会在 FM 中重组进 Header/OHC。'},
+  'nfm-payload':{title:'NFM Payload',body:'当 TLP 类型带 Data 时，Payload 位于 Header（以及适用的 Prefix）之后。Length 字段描述 Data Payload 的 DWORD 数量，Header 和 Prefix 本身不计入 Payload。'},
+  'fm-payload':{title:'FM Payload',body:'Flit Mode 中 Payload 的事务语义保持不变，仍然是 TLP 的 Data Payload。Header Base、OHC 与 Trailer 均不属于 Payload；整个 TLP 再被装入 256B Flit 的 TLP 区域。'},
+  'nfm-ecrc':{title:'NFM TLP Digest / ECRC',body:'Non-Flit Mode 中 TD 位指示 TLP Digest 是否存在。TD=1 时，32-bit ECRC 作为 TLP Digest 附加在 TLP 尾部，用于端到端完整性检查。'},
+  'fm-trailer':{title:'FM TLP Trailer',body:'Flit Mode 将尾部机制统一为 TLP Trailer，并由 Header Base 中的 TS[2:0] 指示是否存在以及对应长度/类型。Trailer 可以承载 ECRC，也支持 IDE 等机制所需要的尾部内容，因此它比 NFM 的单一 TLP Digest 机制更通用。'}
+};
+function closeDetail(){detail.hidden=true;root.querySelectorAll('.nfm-fm-cell.is-active').forEach(x=>x.classList.remove('is-active'))}
+root.querySelectorAll('.nfm-fm-cell').forEach(btn=>btn.addEventListener('click',()=>{
+  const x=explanations[btn.dataset.detail];
+  if(!x)return;
+  root.querySelectorAll('.nfm-fm-cell.is-active').forEach(y=>y.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  title.textContent=x.title;
+  body.innerHTML=`<p>${x.body}</p>`;
+  detail.hidden=false;
+}));
+root.querySelector('.nfm-fm-detail-close').addEventListener('click',closeDetail);
+})();
+</script>
 
 这里要特别区分两类 Prefix：**Flit Mode 仍可保留 Local Vendor-Defined TLP Prefix**；NFM 中的 **End-End TLP Prefix 内容**则在 FM 中重组进 Header/OHC。也就是说，不能简单理解成“FM 把所有 TLP Prefix 都替换成 OHC”。
 
