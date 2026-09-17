@@ -15,8 +15,7 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 <div class="nfm-fm-overview">
   <div class="nfm-fm-card">
     <div class="nfm-fm-title">Non-Flit Mode</div>
-    <div class="nfm-fm-order">serialized order ↓</div>
-    <div class="nfm-fm-row nfm-fm-optional">Optional TLP Prefix</div>
+    <div class="nfm-fm-row nfm-fm-optional">Optional Local / End-End TLP Prefix</div>
     <div class="nfm-fm-row">
       <strong>TLP Header · 3DW / 4DW</strong>
       <small>DW0 contains <code>Fmt[2:0] + Type[4:0]</code></small>
@@ -32,12 +31,12 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 
   <div class="nfm-fm-card">
     <div class="nfm-fm-title">Flit Mode</div>
-    <div class="nfm-fm-order">serialized order ↓</div>
+    <div class="nfm-fm-row nfm-fm-optional">Optional Local Vendor-Defined TLP Prefix</div>
     <div class="nfm-fm-row">
       <strong>Header Base</strong>
       <small>DW0 contains <code>Type[7:0]</code></small>
     </div>
-    <div class="nfm-fm-row nfm-fm-optional">OHC · if present / required</div>
+    <div class="nfm-fm-row nfm-fm-optional">OHC · End-End prefix semantics and other orthogonal content</div>
     <div class="nfm-fm-row nfm-fm-optional">Payload · if present</div>
     <div class="nfm-fm-row nfm-fm-optional">TLP Trailer · according to <code>TS[2:0]</code></div>
   </div>
@@ -47,7 +46,6 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 .nfm-fm-overview{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:1rem;align-items:stretch;margin:1rem 0 1.4rem}
 .nfm-fm-card{border:1px solid var(--main-border-color,#d7dce1);border-radius:.7rem;overflow:hidden;background:var(--main-bg,#fff)}
 .nfm-fm-title{padding:.55rem .8rem;font-weight:700;text-align:center;background:rgba(127,169,199,.18);border-bottom:1px solid var(--main-border-color,#d7dce1)}
-.nfm-fm-order{padding:.3rem .75rem;text-align:center;color:var(--text-muted-color,#777);font-size:.74rem;border-bottom:1px dashed var(--main-border-color,#d7dce1)}
 .nfm-fm-row{padding:.58rem .75rem;text-align:center;border-top:1px solid var(--main-border-color,#e3e6e8)}
 .nfm-fm-row:first-of-type{border-top:0}
 .nfm-fm-row strong{display:block}
@@ -57,6 +55,8 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 .nfm-fm-arrow strong{font-size:1.6rem;line-height:1;color:#4b86b4}
 @media(max-width:720px){.nfm-fm-overview{grid-template-columns:1fr}.nfm-fm-arrow{min-width:0;padding:.1rem 0}.nfm-fm-arrow strong{transform:rotate(90deg)}}
 </style>
+
+这里要特别区分两类 Prefix：**Flit Mode 仍可保留 Local Vendor-Defined TLP Prefix**；NFM 中的 **End-End TLP Prefix 内容**则在 FM 中重组进 Header/OHC。也就是说，不能简单理解成“FM 把所有 TLP Prefix 都替换成 OHC”。
 
 本文重点不是只看编码表，而是理解 **NFM TLP 到 FM TLP 的字段重组**：哪些字段保留、哪些字段扩展、哪些字段从固定 Header 中移入 OHC，以及不同 TLP family 的 Header Base 怎么变化。文末另外加入 PCIe 6.2 的 UIO，作为 Flit-only 新事务单独讨论。
 
@@ -68,7 +68,7 @@ PCIe 6.0 引入 Flit Mode 后，TLP 并没有消失；真正发生变化的是 *
 |---|---|---|
 | TLP 类型编码 | `Fmt[2:0] + Type[4:0]` | fully-decoded `Type[7:0]` |
 | Header 组织 | 固定 3DW / 4DW Header | `Header Base + OHC` |
-| 可选附加信息 | TLP Prefix / 固定 Header 中预留字段 | OHC-A/B/C/E 按需出现 |
+| Prefix / 附加信息 | Local / End-End TLP Prefix；部分信息也位于固定 Header | Local Vendor-Defined TLP Prefix 仍可存在；End-End Prefix 内容以及其他正交信息通过 OHC 表达 |
 | Header 长度来源 | `Fmt` 明确区分 3DW / 4DW | 由 `Type[7:0]` 直接决定 Header Base format/size |
 | Byte Enable | Memory/I/O/Config Request 的固定 Header 字段 | 根据 TLP family 移入对应 OHC-A |
 | Tag | `Tag[7:0]`，再由 `T8/T9` 扩展 | Header Base 中连续的 `Tag[13:0]` |
