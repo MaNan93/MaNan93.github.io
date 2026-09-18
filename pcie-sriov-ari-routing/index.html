@@ -1,0 +1,315 @@
+<!doctype html><html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f7"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1b1e"><meta name="viewport" content="width=device-width, user-scalable=no initial-scale=1, shrink-to-fit=no, viewport-fit=cover" ><meta name="generator" content="Jekyll v4.4.1" /><meta property="og:title" content="PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责" /><meta property="og:locale" content="zh_CN" /><meta name="description" content="梳理 PCIe SR-IOV 中 VF Routing ID 的生成方式，以及 non-ARI / ARI hierarchy 下 Bus Number 的消耗差异，并说明 EP、Root Port、Switch DSP、USP 各自与 ARI Capability / ARI Forwarding 的关系。" /><meta name="twitter:description" property="og:description" content="梳理 PCIe SR-IOV 中 VF Routing ID 的生成方式，以及 non-ARI / ARI hierarchy 下 Bus Number 的消耗差异，并说明 EP、Root Port、Switch DSP、USP 各自与 ARI Capability / ARI Forwarding 的关系。" /><link rel="canonical" href="https://manan93.github.io/pcie-sriov-ari-routing/" /><meta property="og:url" content="https://manan93.github.io/pcie-sriov-ari-routing/" /><meta property="og:site_name" content="MaNan Notes" /><meta property="og:type" content="article" /><meta property="article:published_time" content="2026-09-18T13:50:00+08:00" /><meta property="article:modified_time" content="2026-09-18T13:50:00+08:00" /><meta property="og:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:card" content="summary_large_image" /><meta property="twitter:image" content="https://manan93.github.io/assets/img/thumbnail.jpg" /><meta name="twitter:title" content="PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责" /><meta name="twitter:site" content="@twitter_username" /> <script type="application/ld+json"> {"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2026-09-18T13:50:00+08:00","datePublished":"2026-09-18T13:50:00+08:00","description":"梳理 PCIe SR-IOV 中 VF Routing ID 的生成方式，以及 non-ARI / ARI hierarchy 下 Bus Number 的消耗差异，并说明 EP、Root Port、Switch DSP、USP 各自与 ARI Capability / ARI Forwarding 的关系。","headline":"PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责","mainEntityOfPage":{"@type":"WebPage","@id":"https://manan93.github.io/pcie-sriov-ari-routing/"},"url":"https://manan93.github.io/pcie-sriov-ari-routing/"}</script><title>PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责 | MaNan Notes</title><link rel="icon" type="image/png" href="/assets/img/favicons/favicon-96x96.png" sizes="96x96"><link rel="icon" type="image/svg+xml" href="/assets/img/favicons/favicon.svg"><link rel="shortcut icon" href="/assets/img/favicons/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicons/apple-touch-icon.png"><link rel="manifest" href="/assets/img/favicons/site.webmanifest"><link rel="preconnect" href="https://fonts.googleapis.com" ><link rel="dns-prefetch" href="https://fonts.googleapis.com" ><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://fonts.gstatic.com" ><link rel="preconnect" href="https://cdn.jsdelivr.net" ><link rel="dns-prefetch" href="https://cdn.jsdelivr.net" ><link rel="stylesheet" href="/assets/css/jekyll-theme-chirpy.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400&family=Source+Sans+Pro:wght@400;600;700;900&display=swap"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3/dist/css/glightbox.min.css"> <script src="/assets/js/dist/theme.min.js"></script> <script defer src="https://cdn.jsdelivr.net/combine/npm/simple-jekyll-search@1/dest/simple-jekyll-search.min.js,npm/loading-attribute-polyfill@2/dist/loading-attribute-polyfill.umd.min.js,npm/glightbox@3/dist/js/glightbox.min.js,npm/clipboard@2/dist/clipboard.min.js,npm/dayjs@1/dayjs.min.js,npm/dayjs@1/locale/zh.js,npm/dayjs@1/plugin/relativeTime.js,npm/dayjs@1/plugin/localizedFormat.js,npm/tocbot@4/dist/tocbot.min.js"></script> <script defer src="/assets/js/dist/post.min.js"></script> <script defer src="/app.min.js?baseurl=&register=true" ></script><body><aside aria-label="Sidebar" id="sidebar" class="d-flex flex-column align-items-end"><header class="profile-wrapper"> <a href="/" id="avatar" class="rounded-circle"><img src="/assets/img/avatar.jpg" width="112" height="112" alt="avatar" onerror="this.style.display='none'"></a> <a class="site-title d-block" href="/">MaNan Notes</a><p class="site-subtitle fst-italic mb-0">Digital IC · PCIe · Engineering</p></header><nav class="flex-column flex-grow-1 w-100 ps-0"><ul class="nav"><li class="nav-item"> <a href="/" class="nav-link"> <i class="fa-fw fas fa-home"></i> <span>首页</span> </a><li class="nav-item"> <a href="/categories/" class="nav-link"> <i class="fa-fw fas fa-stream"></i> <span>分类</span> </a><li class="nav-item"> <a href="/tags/" class="nav-link"> <i class="fa-fw fas fa-tags"></i> <span>标签</span> </a><li class="nav-item"> <a href="/archives/" class="nav-link"> <i class="fa-fw fas fa-archive"></i> <span>归档</span> </a><li class="nav-item"> <a href="/tools/" class="nav-link"> <i class="fa-fw fas fa-terminal"></i> <span>工具</span> </a><li class="nav-item"> <a href="/about/" class="nav-link"> <i class="fa-fw fas fa-info-circle"></i> <span>关于</span> </a></ul></nav><div class="sidebar-bottom d-flex flex-wrap align-items-center w-100"><div class="btn-group dropup"> <button type="button" class="btn btn-link nav-link" aria-label="Switch Mode" id="mode-toggle" data-bs-toggle="dropdown" ><i class="fa-regular fa-sun" data-theme-mode="light"></i><i class="fa-regular fa-moon" data-theme-mode="dark"></i><i class="fa-solid fa-display" data-theme-mode="system"></i></button><ul class="dropdown-menu rounded-3 mb-1 p-1"><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="light"><i class="fa-regular fa-sun" data-theme-mode="light"></i>浅色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="dark"><i class="fa-regular fa-moon" data-theme-mode="dark"></i>深色</button><li> <button class="dropdown-item d-flex align-items-center" type="button" data-theme-mode="system"><i class="fa-solid fa-display" data-theme-mode="system"></i>跟随系统</button></ul></div><span class="icon-border"></span> <a href="https://github.com/MaNan93" aria-label="github" target="_blank" rel="noopener noreferrer" > <i class="fab fa-github"></i> </a> <a href="https://twitter.com/twitter_username" aria-label="twitter" target="_blank" rel="noopener noreferrer" > <i class="fa-brands fa-x-twitter"></i> </a> <a href="/feed.xml" aria-label="rss" > <i class="fas fa-rss"></i> </a></div></aside><div id="main-wrapper" class="d-flex justify-content-center"><div class="container d-flex flex-column px-xxl-5"><header id="topbar-wrapper" class="flex-shrink-0" aria-label="Top Bar"><div id="topbar" class="d-flex align-items-center justify-content-between px-lg-3 h-100" ><nav id="breadcrumb" aria-label="Breadcrumb"> <span> <a href="/">首页</a> </span> <span>PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责</span></nav><button type="button" id="sidebar-trigger" class="btn btn-link" aria-label="Sidebar"> <i class="fas fa-bars fa-fw"></i> </button><div id="topbar-title"> 文章</div><button type="button" id="search-trigger" class="btn btn-link" aria-label="Search"> <i class="fas fa-search fa-fw"></i> </button> <search id="search" class="align-items-center ms-3 ms-lg-0"> <i class="fas fa-search fa-fw"></i> <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="搜索..." > </search> <button type="button" class="btn btn-link text-decoration-none" id="search-cancel">取消</button></div></header><div class="row flex-grow-1"><main aria-label="Main Content" class="col-12 col-lg-11 col-xl-9 px-md-4"><article class="px-1" data-toc="true"><header><h1 data-toc-skip>PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责</h1><p class="post-desc fw-light mb-4">梳理 PCIe SR-IOV 中 VF Routing ID 的生成方式，以及 non-ARI / ARI hierarchy 下 Bus Number 的消耗差异，并说明 EP、Root Port、Switch DSP、USP 各自与 ARI Capability / ARI Forwarding 的关系。</p><div class="post-meta text-muted"> <span> 发表于 <time data-ts="1789710600" data-df="YYYY/MM/DD" data-bs-toggle="tooltip" data-bs-placement="bottom" > 2026/09/18 </time> </span><div class="d-flex justify-content-between"> <span> 作者 <em> <a href="https://github.com/MaNan93">MaNan</a> </em> </span><div> <span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="2603 字" > <em>14 分钟</em>阅读</span></div></div></div></header><div id="toc-bar" class="d-flex align-items-center justify-content-between invisible"> <span class="label text-truncate">PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责</span> <button type="button" class="toc-trigger btn me-1"> <i class="fa-solid fa-list-ul fa-fw"></i> </button></div><button id="toc-solo-trigger" type="button" class="toc-trigger btn btn-outline-secondary btn-sm"> <span class="label ps-2 pe-1">文章内容</span> <i class="fa-solid fa-angle-right fa-fw"></i> </button> <dialog id="toc-popup" class="p-0"><div class="header d-flex flex-row align-items-center justify-content-between"><div class="label text-truncate py-2 ms-4">PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责</div><button id="toc-popup-close" type="button" class="btn-close btn-sm mx-3" aria-label="Close"></button></div><div id="toc-popup-content" class="px-4 py-3 pb-4"></div></dialog><div class="content"><p>SR-IOV 里一个很容易混淆的问题是：</p><blockquote><p>VF 很多时，为什么有时会占用额外 Bus Number，而有时又可以全部留在同一个 Bus？</p></blockquote><p>核心取决于两件事：</p><ol><li><strong>VF Routing ID 如何生成</strong><li><strong>当前 PCIe hierarchy 是否启用了 ARI（Alternative Routing-ID Interpretation）</strong></ol><hr /><h2 id="1-routing-id-的基本格式"><span class="me-2">1. Routing ID 的基本格式</span><a href="#1-routing-id-的基本格式" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>PCIe 的 Routing ID / Requester ID / Completer ID 都是 16 bit。</p><h3 id="non-ari"><span class="me-2">Non-ARI</span><a href="#non-ari" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>传统解释方式：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre><td class="rouge-code"><pre>15             8 7             3 2       0
++---------------+---------------+---------+
+|  Bus Number   | Device Number | Function|
++---------------+---------------+---------+
+      8 bit          5 bit        3 bit
+</pre></table></code></div></div><p>即：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Bus[7:0] + Device[4:0] + Function[2:0]
+</pre></table></code></div></div><h3 id="ari"><span class="me-2">ARI</span><a href="#ari" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>ARI 并没有增加 Routing ID 的位宽，仍然是 16 bit，只是重新解释低 8 bit：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre><td class="rouge-code"><pre>15             8 7                         0
++---------------+---------------------------+
+|  Bus Number   |      Function Number      |
++---------------+---------------------------+
+      8 bit                 8 bit
+</pre></table></code></div></div><p>即：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Bus[7:0] + Function[7:0]
+</pre></table></code></div></div><p>所以同一个数值，例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>RID = 0x0325
+</pre></table></code></div></div><p>在两种模式下的解释不同：</p><div class="table-wrapper"><table><thead><tr><th>模式<th>解释<tbody><tr><td>Non-ARI<td>Bus 03, Device 04, Function 5<tr><td>ARI<td>Bus 03, Function 0x25 = 37</table></div><p><strong>Routing ID 的 16-bit 数值没变，变的是低 8 bit 的解释方式。</strong></p><hr /><h2 id="2-sr-iov-的-vf-routing-id-怎么算"><span class="me-2">2. SR-IOV 的 VF Routing ID 怎么算</span><a href="#2-sr-iov-的-vf-routing-id-怎么算" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>SR-IOV Capability 中有两个关键字段：</p><ul><li><code class="language-plaintext highlighter-rouge">First VF Offset</code><li><code class="language-plaintext highlighter-rouge">VF Stride</code></ul><p>VF Routing ID 按下面的方式计算：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre><td class="rouge-code"><pre>VF1 RID = PF RID + First VF Offset
+
+VFn RID = PF RID
+        + First VF Offset
+        + (n - 1) * VF Stride
+</pre></table></code></div></div><p>所有运算都是 16-bit Routing ID 运算。</p><p>因此是否跨 Bus，真正应该看：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>PF RID + First VF Offset + (NumVFs - 1) * VF Stride
+</pre></table></code></div></div><p>是否让 RID 从：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>xxFF
+</pre></table></code></div></div><p>进入：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>(xx+1)00
+</pre></table></code></div></div><p>所以不能简单地只看 VF 数量。</p><p>例如即使 VF 很少，如果：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>VF Stride = 64
+</pre></table></code></div></div><p>也可能很快跨到下一个 Bus。</p><hr /><h2 id="3-non-ari-sr-iov为什么-vf-多了必须占-bus-number"><span class="me-2">3. Non-ARI SR-IOV：为什么 VF 多了必须占 Bus Number</span><a href="#3-non-ari-sr-iov为什么-vf-多了必须占-bus-number" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>对于位于 Downstream Port 后面的 SR-IOV Endpoint，在 non-ARI hierarchy 下，其 Device Number 必须保持为 0。</p><p>也就是说同一个 Bus 上，这个 Endpoint 实际可用的是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre><td class="rouge-code"><pre>xx:00.0
+xx:00.1
+...
+xx:00.7
+</pre></table></code></div></div><p>一共只有 8 个 Function RID。</p><p>不能继续使用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>xx:01.0
+xx:01.1
+...
+</pre></table></code></div></div><p>来表示同一个 SR-IOV Device 的更多 VF。</p><p>因此：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>PF + VF &gt; 8
+</pre></table></code></div></div><p>时，如果没有 ARI，就需要进入后续 Bus Number：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+</pre><td class="rouge-code"><pre>Bus n:
+n:00.0 ~ n:00.7
+
+Bus n+1:
+(n+1):00.0 ~ (n+1):00.7
+
+Bus n+2:
+(n+2):00.0 ~ (n+2):00.7
+</pre></table></code></div></div><p>所以 non-ARI SR-IOV 的代价之一，就是可能大量消耗 Bus Number。</p><hr /><h2 id="4-ari-sr-iov为什么同一-bus-可以有-256-个-function"><span class="me-2">4. ARI SR-IOV：为什么同一 Bus 可以有 256 个 Function</span><a href="#4-ari-sr-iov为什么同一-bus-可以有-256-个-function" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>启用 ARI 后：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Device[4:0] + Function[2:0]
+</pre></table></code></div></div><p>被整体解释成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Function[7:0]
+</pre></table></code></div></div><p>于是一个 Bus 内可以使用：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Function 0 ~ 255
+</pre></table></code></div></div><p>例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+</pre><td class="rouge-code"><pre>RID 0x0300 -&gt; Bus 03, Function 0
+RID 0x0301 -&gt; Bus 03, Function 1
+...
+RID 0x0308 -&gt; Bus 03, Function 8
+...
+RID 0x03FF -&gt; Bus 03, Function 255
+</pre></table></code></div></div><p>因此，在 Routing ID 分配足够紧凑的情况下：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>PF + VF &lt;= 256
+</pre></table></code></div></div><p>可以全部放在同一个 Bus。</p><p>如果继续增加，Routing ID 会自然跨过：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>03FF -&gt; 0400
+</pre></table></code></div></div><p>此时仍然需要额外 Bus Number。</p><p>PCIe 规范给出的典型例子是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>PF0 + VF0~VF255   -&gt; 第一个 Bus
+VF256~VF511       -&gt; 第二个 Bus
+VF512~            -&gt; 第三个 Bus
+</pre></table></code></div></div><p>但要注意：</p><blockquote><p>“256 个才跨 Bus”只适用于 First VF Offset / VF Stride 足够紧凑的情况。</p></blockquote><hr /><h2 id="5-2-pf--32-vf-的例子"><span class="me-2">5. 2 PF × 32 VF 的例子</span><a href="#5-2-pf--32-vf-的例子" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>假设：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre><td class="rouge-code"><pre>PF0 + PF1
+每个 PF 32 VF
+
+总数 = 2 + 64 = 66 Functions
+</pre></table></code></div></div><h3 id="non-ari-1"><span class="me-2">Non-ARI</span><a href="#non-ari-1" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>每个 Bus 对该 Device 最多只有 8 个 Function：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre><td class="rouge-code"><pre>Bus n     : 8
+Bus n+1   : 8
+Bus n+2   : 8
+...
+</pre></table></code></div></div><p>因此需要多个 Bus Number。</p><h3 id="ari-1"><span class="me-2">ARI</span><a href="#ari-1" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>如果 VF RID 分配紧凑：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>Bus n:
+Function 0 ~ 65
+</pre></table></code></div></div><p>66 个 PF/VF Routing ID 可以全部放在同一个 Bus。</p><hr /><h1 id="6-ari-到底是谁支持epdsproot-portusp">6. ARI 到底是谁支持：EP、DSP、Root Port、USP？</h1><p>这里要区分两个概念：</p><ul><li><strong>ARI Device</strong><li><strong>ARI Downstream Port / ARI Forwarding</strong></ul><p>它们不是一回事。</p><hr /><h2 id="7-endpoint--pfari-extended-capability"><span class="me-2">7. Endpoint / PF：ARI Extended Capability</span><a href="#7-endpoint--pfari-extended-capability" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>一个 ARI Device 的 Function 会实现 <strong>ARI Extended Capability</strong>。</p><p>ARI Extended Capability 主要用于描述和管理 ARI Device 内部 Function。</p><p>其中比较典型的字段包括：</p><h3 id="next-function-number"><span class="me-2">Next Function Number</span><a href="#next-function-number" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>对于非 VF Function：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Next Function Number
+</pre></table></code></div></div><p>形成一个 Function 链，用来帮助软件发现 Function &gt; 7 的 Extended Functions。</p><p>例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre><td class="rouge-code"><pre>Function 0
+   |
+   +-- Next Function Number = 4
+                              |
+                              v
+                         Function 4
+                              |
+                              +-- Next = 10
+                                       |
+                                       v
+                                  Function 10
+</pre></table></code></div></div><p>但 VF 不依赖这个字段发现。</p><p>VF 的位置由：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>First VF Offset
+VF Stride
+</pre></table></code></div></div><p>决定。</p><h3 id="ari-capability-中的其他功能"><span class="me-2">ARI Capability 中的其他功能</span><a href="#ari-capability-中的其他功能" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>ARI Capability 还包含与 Function Group 有关的功能，例如：</p><ul><li>MFVC Function Groups Capability<li>ACS Function Groups Capability<li>Function Group</ul><p>这些主要用于多 Function 设备中的 VC / ACS Function Group 管理。</p><p>因此：</p><blockquote><p>EP 侧的 ARI Extended Capability 描述的是“这个 Device 如何作为 ARI Device 工作”。</p></blockquote><hr /><h1 id="8-dsp--root-portari-forwarding">8. DSP / Root Port：ARI Forwarding</h1><p>真正决定能不能访问 Function 8~255 的关键，是 <strong>EP 正上方的 Downstream Port</strong>。</p><p>这个 Downstream Port 可以是：</p><ul><li>Root Port<li>Switch Downstream Port（DSP）</ul><p>PCIe 对 ARI Downstream Port 的定义就是：</p><blockquote><p>支持 ARI Forwarding 的 Root Port 或 Switch Downstream Port。</p></blockquote><p>DSP / Root Port 的关键控制是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>ARI Forwarding Supported
+ARI Forwarding Enable
+</pre></table></code></div></div><p>当 ARI Forwarding Enable 打开后，它允许下面的 ARI Device 使用 Extended Functions。</p><hr /><h2 id="9-为什么-dsp-必须支持-ari-forwarding"><span class="me-2">9. 为什么 DSP 必须支持 ARI Forwarding</span><a href="#9-为什么-dsp-必须支持-ari-forwarding" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>假设收到：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>RID = 0x0341
+</pre></table></code></div></div><p>ARI 解释：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>Bus      = 03
+Function = 0x41 = 65
+</pre></table></code></div></div><p>但传统解释会变成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>Bus      = 03
+Device   = 08
+Function = 1
+</pre></table></code></div></div><p>所以如果 DSP 不支持 / 没打开 ARI Forwarding，它会按传统 Device/Function 规则处理。</p><p>对于一个直接位于 Downstream Port 后面的 Endpoint：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Device Number 必须 = 0
+</pre></table></code></div></div><p>因此这种 <code class="language-plaintext highlighter-rouge">Device=8</code> 的解释就是非法的。</p><p>ARI Forwarding 的核心作用就是：</p><blockquote><p>让 Downstream Port 不再把 RID[7:3] 强制解释成传统 Device Number，而允许它属于 8-bit ARI Function Number。</p></blockquote><hr /><h1 id="10-ari-forwarding-并不是-bus-number-路由功能">10. ARI Forwarding 并不是 Bus Number 路由功能</h1><p>这一点很重要。</p><p>Switch / Root Port 对 Bus Number 的路由仍然依靠：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>Secondary Bus Number
+Subordinate Bus Number
+</pre></table></code></div></div><p>例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>DSP:
+Secondary   = 03
+Subordinate = 07
+</pre></table></code></div></div><p>意味着：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Bus 03 ~ 07
+</pre></table></code></div></div><p>都应该从该 Downstream Port 路由下去。</p><p>所以 ARI 并不是解决“Bus Number 往哪里走”。</p><p>ARI 真正解决的是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>RID[7:0]
+</pre></table></code></div></div><p>在目标 Bus 内应该解释成：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Device[4:0] + Function[2:0]
+</pre></table></code></div></div><p>还是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Function[7:0]
+</pre></table></code></div></div><hr /><h1 id="11-dsp-的-secondary--subordinate-bus-number">11. DSP 的 Secondary / Subordinate Bus Number</h1><p>如果 SR-IOV Device 的 VF 跨多个 Bus，软件需要给 DSP 留出足够的 Bus Number 范围。</p><p>例如：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>EP PF 所在 Bus       = 03
+最后一个 VF 所在 Bus = 07
+</pre></table></code></div></div><p>则可以配置为：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>Secondary Bus Number   = 03
+Subordinate Bus Number = 07
+</pre></table></code></div></div><p>其中：</p><ul><li><strong>Secondary Bus Number</strong>：该 DSP 下游的第一个 Bus<li><strong>Subordinate Bus Number</strong>：该 DSP 下游允许路由到的最大 Bus Number</ul><p>VF 增多时，通常需要扩大的是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>Subordinate Bus Number
+</pre></table></code></div></div><p>而不是不断修改 Secondary Bus Number。</p><hr /><h1 id="12-usp-是否需要-ari-capability">12. USP 是否需要 ARI Capability？</h1><p>这是最容易混淆的一点。</p><p>对于一个普通 Switch：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre><td class="rouge-code"><pre>        Switch USP
+             |
+         Switch Fabric
+        /     |      \
+      DSP    DSP     DSP
+       |      |
+      EP     EP
+</pre></table></code></div></div><p><strong>ARI Forwarding 是 Downstream Port 的能力。</strong></p><p>因为 Extended Function 所在的 ARI Device 是挂在某个 DSP 下面的，真正需要解除传统 Device Number 限制的是这个 DSP。</p><p>因此：</p><div class="table-wrapper"><table><thead><tr><th>组件<th>ARI 相关职责<tbody><tr><td>EP / PF<td>作为 ARI Device，实现 ARI Extended Capability<tr><td>VF<td>通过 SR-IOV First VF Offset / VF Stride 定位，不依赖 Next Function Number<tr><td>Root Port<td>如果下面直接挂 ARI Device，需要支持并 Enable ARI Forwarding<tr><td>Switch DSP<td>如果下面直接挂 ARI Device，需要支持并 Enable ARI Forwarding<tr><td>Switch USP<td>不承担“下面某个 EP Extended Function”的直接 ARI Forwarding 角色；上游主要看到正常的 Requester/Completer ID<tr><td>Switch Fabric<td>正常根据 Bus Number / 路由规则转发</table></div><p>因此判断 ARI Forwarding 时最重要的一句话是：</p><blockquote><p>看 <strong>ARI Device immediately above/below 的相邻 Downstream Port</strong>。</p></blockquote><p>PCIe 对 Extended Function 的定义也明确指出：</p><blockquote><p>Function Number &gt; 7 的 Extended Function，只有在 ARI Device 正上方的 Downstream Port 开启 ARI Forwarding 后才能访问。</p></blockquote><hr /><h1 id="13-root-port-与-switch-dsp-本质相同">13. Root Port 与 Switch DSP 本质相同</h1><p>从 ARI 角度看：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>Root Port
+   |
+  EP
+</pre></table></code></div></div><p>和：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre><td class="rouge-code"><pre>Switch DSP
+   |
+  EP
+</pre></table></code></div></div><p>作用类似。</p><p>只要这个 Port 是：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>immediately above the ARI Device
+</pre></table></code></div></div><p>它就必须支持：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>ARI Forwarding Supported
+</pre></table></code></div></div><p>并由软件设置：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>ARI Forwarding Enable = 1
+</pre></table></code></div></div><p>之后 EP 才能合法使用 Function 8~255。</p><hr /><h1 id="14-sr-iov-capability-中的-ari-capable-hierarchy">14. SR-IOV Capability 中的 ARI Capable Hierarchy</h1><p>SR-IOV PF 中还有：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre>ARI Capable Hierarchy
+</pre></table></code></div></div><p>这个 bit 的意义不是“EP 自己有没有 ARI Capability”。</p><p>它表示：</p><blockquote><p>软件已经确认当前 PCIe hierarchy 可以支持这个 SR-IOV Device 按 ARI 方式分配 VF Routing ID。</p></blockquote><p>因此 Device 可以根据这个 bit 决定：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre><td class="rouge-code"><pre>First VF Offset
+VF Stride
+</pre></table></code></div></div><p>应该采用适合 ARI hierarchy 还是 non-ARI hierarchy 的布局。</p><p>一些 PCIe Controller IP 会分别准备：</p><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre><td class="rouge-code"><pre>ARI hierarchy:
+  First VF Offset
+  VF Stride
+
+Non-ARI hierarchy:
+  First VF Offset
+  VF Stride
+</pre></table></code></div></div><p>两套值。</p><hr /><h1 id="15-两种模式最终对比">15. 两种模式最终对比</h1><div class="table-wrapper"><table><thead><tr><th>项目<th>Non-ARI SR-IOV<th>ARI SR-IOV<tbody><tr><td>RID 低 8 bit<td>Device[4:0] + Function[2:0]<td>Function[7:0]<tr><td>同 Bus 最大 Function 空间<td>8<td>256<tr><td>Device Number<td>必须为 0<td>不再单独解释 Device Number<tr><td>VF 多时<td>较早跨 Bus<td>最多 256 个 RID 可留在一个 Bus<tr><td>DSP ARI Forwarding<td>不需要<td>Function &gt; 7 时必须支持并 Enable<tr><td>Bus Number 路由<td>Secondary/Subordinate Bus<td>Secondary/Subordinate Bus<tr><td>VF RID 生成<td>First VF Offset + VF Stride<td>First VF Offset + VF Stride</table></div><hr /><h1 id="16-最终可以这样记">16. 最终可以这样记</h1><h3 id="non-ari-2"><span class="me-2">Non-ARI</span><a href="#non-ari-2" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+</pre><td class="rouge-code"><pre>SR-IOV EP
+Device Number 必须 = 0
+
+每 Bus：
+Function 0~7
+
+超过 8 个 PF/VF
+        |
+        v
+占用新的 Bus Number
+        |
+        v
+DSP Subordinate Bus Number 必须覆盖所有 VF Bus
+</pre></table></code></div></div><h3 id="ari-2"><span class="me-2">ARI</span><a href="#ari-2" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><div class="language-text highlighter-rouge"><div class="code-header"> <span data-label-text="Text"><i class="fas fa-code fa-fw small"></i></span> <button aria-label="copy" data-title-succeed="已复制！"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre><td class="rouge-code"><pre>SR-IOV + ARI
+
+Bus[7:0] + Function[7:0]
+
+同 Bus：
+Function 0~255
+        |
+        v
+EP 正上方 Root Port / DSP
+必须支持 ARI Forwarding
+        |
+        v
+Function &gt; 255 或 RID 因 Offset/Stride 跨 xxFF
+        |
+        v
+进入新的 Bus Number
+        |
+        v
+DSP Subordinate Bus Number 继续覆盖
+</pre></table></code></div></div><hr /><h2 id="17-一个容易遗漏的结论"><span class="me-2">17. 一个容易遗漏的结论</span><a href="#17-一个容易遗漏的结论" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p><strong>ARI 与 SR-IOV 是两个不同机制。</strong></p><p>SR-IOV 并不强制 ARI。</p><p>但是：</p><ul><li>没有 ARI，大规模 VF 会很快消耗 Bus Number<li>有 ARI，可以把 Routing ID 的低 8 bit 全部作为 Function Number<li>VF 是否真正跨 Bus，最终仍取决于 <code class="language-plaintext highlighter-rouge">First VF Offset</code> 和 <code class="language-plaintext highlighter-rouge">VF Stride</code></ul><p>因此最准确的理解是：</p><blockquote><p><strong>ARI 决定一个 Bus 内 Routing ID 低 8 bit 如何解释；SR-IOV 的 First VF Offset / VF Stride 决定每个 VF 最终拿到哪个 16-bit Routing ID。</strong></p></blockquote><hr /><h2 id="参考"><span class="me-2">参考</span><a href="#参考" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><ul><li>PCI Express Base Specification Revision 6.4<ul><li>ARI / ARI Device / ARI Downstream Port / ARI Forwarding 定义<li>Section 7.8.8, ARI Extended Capability<li>Section 9.2.1.2, VF Discovery<li>Section 9.4.3, SR-IOV Capability registers</ul><li>Synopsys DesignWare PCI Express Controller Databook<ul><li>SR-IOV and ARI Capable Hierarchy<li>Programmable Virtual Function Allocation<li>Routing ID Generation Examples</ul></ul></div><div class="post-tail-wrapper text-muted"><div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div class="post-meta"> <i class="far fa-folder-open fa-fw me-1"></i> <a href="/categories/pcie/">PCIe</a>, <a href="/categories/virtualization/">Virtualization</a></div></div><div class="post-tags"> <i class="fa fa-tags fa-fw me-1"></i> <a href="/tags/pcie/" class="post-tag no-text-decoration" >PCIe</a> <a href="/tags/sr-iov/" class="post-tag no-text-decoration" >SR-IOV</a> <a href="/tags/ari/" class="post-tag no-text-decoration" >ARI</a> <a href="/tags/vf/" class="post-tag no-text-decoration" >VF</a> <a href="/tags/pf/" class="post-tag no-text-decoration" >PF</a> <a href="/tags/routing-id/" class="post-tag no-text-decoration" >Routing ID</a> <a href="/tags/bus-number/" class="post-tag no-text-decoration" >Bus Number</a></div><div class=" post-tail-bottom d-flex justify-content-between align-items-center mt-5 pb-2 " ><div class="license-wrapper"> 本文由作者按照 <a href="https://creativecommons.org/licenses/by/4.0/"> CC BY 4.0 </a> 进行授权</div><div class="share-wrapper d-flex align-items-center"> <span class="share-label text-muted">分享</span> <span class="share-icons"> <a href="https://twitter.com/intent/tweet?text=PCIe%20SR-IOV%20%E4%B8%8E%20ARI%EF%BC%9AVF%20Routing%20ID%E3%80%81Bus%20Number%20%E4%B8%8E%E7%AB%AF%E5%8F%A3%E8%81%8C%E8%B4%A3%20-%20MaNan%20Notes&url=https%3A%2F%2Fmanan93.github.io%2Fpcie-sriov-ari-routing%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Twitter" aria-label="Twitter"> <i class="fa-fw fa-brands fa-square-x-twitter"></i> </a> <a href="https://www.facebook.com/sharer/sharer.php?title=PCIe%20SR-IOV%20%E4%B8%8E%20ARI%EF%BC%9AVF%20Routing%20ID%E3%80%81Bus%20Number%20%E4%B8%8E%E7%AB%AF%E5%8F%A3%E8%81%8C%E8%B4%A3%20-%20MaNan%20Notes&u=https%3A%2F%2Fmanan93.github.io%2Fpcie-sriov-ari-routing%2F" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook" aria-label="Facebook"> <i class="fa-fw fab fa-facebook-square"></i> </a> <a href="https://t.me/share/url?url=https%3A%2F%2Fmanan93.github.io%2Fpcie-sriov-ari-routing%2F&text=PCIe%20SR-IOV%20%E4%B8%8E%20ARI%EF%BC%9AVF%20Routing%20ID%E3%80%81Bus%20Number%20%E4%B8%8E%E7%AB%AF%E5%8F%A3%E8%81%8C%E8%B4%A3%20-%20MaNan%20Notes" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Telegram" aria-label="Telegram"> <i class="fa-fw fab fa-telegram"></i> </a> <button id="copy-link" aria-label="Copy link" class="btn small" data-bs-toggle="tooltip" data-bs-placement="top" title="分享链接" data-title-succeed="链接已复制！" > <i class="fa-fw fas fa-link pe-none fs-6"></i> </button> </span></div></div></div></article></main><aside aria-label="Panel" id="panel-wrapper" class="col-xl-3 ps-2 text-muted"><div class="access"><section id="access-lastmod"><h2 class="panel-heading">最近更新</h2><ul class="content list-unstyled ps-0 pb-1 ms-1 mt-2"><li class="text-truncate lh-lg"> <a href="/pcie-sriov-ari-routing/">PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责</a><li class="text-truncate lh-lg"> <a href="/pcie6-flit-tlp-header-ohc-translation/">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</a><li class="text-truncate lh-lg"> <a href="/pcie-phy-rterm/">PCIe PHY Rterm、VCM 与 AC Coupling</a><li class="text-truncate lh-lg"> <a href="/pcie-flit-mode/">PCIe Flit Mode：能力、声明与协商</a><li class="text-truncate lh-lg"> <a href="/pcie-tx-ffe/">PCIe Tx FFE & Preset Study Notes</a></ul></section><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ari/">ARI</a> <a class="post-tag btn btn-outline-primary" href="/tags/bus-number/">Bus Number</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a></div></section></div><div class="toc-border-cover z-3"></div><section id="toc-wrapper" class="invisible position-sticky ps-0 pe-4 pb-4"><h2 class="panel-heading ps-3 pb-2 mb-0">文章内容</h2><nav id="toc"></nav></section></aside></div><div class="row"><div id="tail-wrapper" class="col-12 col-lg-11 col-xl-9 px-md-4"><aside id="related-posts" aria-labelledby="related-label"><h3 class="mb-4" id="related-label">相关文章</h3><nav class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4"><article class="col"> <a href="/pcie6-flit-tlp-header-ohc-translation/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789540800" data-df="YYYY/MM/DD" > 2026/09/16 </time><h4 class="pt-0 my-2">PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</h4><div class="text-muted"><p>从 PCIe 5.x Non-Flit Mode 的 Fmt+Type 出发，梳理 PCIe 6.x Flit Mode TLP 的 Header Base、OHC、Trailer、Type[7:0] 编码、NFM/FM 转换关系，以及 PCIe 6.2 UIO。</p></div></div></a></article><article class="col"> <a href="/pcie-phy-rterm/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789524000" data-df="YYYY/MM/DD" > 2026/09/16 </time><h4 class="pt-0 my-2">PCIe PHY Rterm、VCM 与 AC Coupling</h4><div class="text-muted"><p>在 PCIe PHY 调试中，经常会看到 Rterm、VCM、Rterm calibration、Receiver Detect 等概念。它们实际上都和高速差分接收端的电气工作方式有关。 1. Rterm 是什么 Rterm（Receiver Termination）就是接收端终端阻抗。PCIe 差分通道通常按约 100 Ω 差分阻抗设计，因此 RX 端需要提供与通道匹配的终端阻抗，以降...</p></div></div></a></article><article class="col"> <a href="/pcie-flit-mode/" class="post-preview card h-100"><div class="card-body"> <time data-ts="1789354200" data-df="YYYY/MM/DD" > 2026/09/14 </time><h4 class="pt-0 my-2">PCIe Flit Mode：能力、声明与协商</h4><div class="text-muted"><p>梳理 PCIe Flit Mode 的 Component Capability、TS Advertisement、Flit_Mode_Enabled 协商结果，以及它与 64 GT/s、L0s/L0p 的区别。</p></div></div></a></article></nav></aside><nav class="post-navigation d-flex justify-content-between" aria-label="Post Navigation"> <a href="/pcie6-flit-tlp-header-ohc-translation/" class="btn btn-outline-primary" aria-label="上一篇" ><p>PCIe 6 Flit Mode TLP：Header Base、OHC 与 NFM/FM 转换</p></a><div class="btn btn-outline-primary disabled" aria-label="下一篇"><p>-</p></div></nav><footer aria-label="Site Info" class=" d-flex flex-column justify-content-center text-muted flex-lg-row justify-content-lg-between align-items-lg-center pb-lg-3 " ><p>© <time>2026</time> <a href="https://github.com/MaNan93">MaNan</a>. <span data-bs-toggle="tooltip" data-bs-placement="top" title="除非另有说明，本网站上的博客文章均由作者按照知识共享署名 4.0 国际 (CC BY 4.0) 许可协议进行授权。" >保留部分权利。</span></p><p>本站采用 <a href="https://jekyllrb.com" target="_blank" rel="noopener">Jekyll</a> 主题 <a data-bs-toggle="tooltip" data-bs-placement="top" title="v7.6.0" href="https://github.com/cotes2020/jekyll-theme-chirpy" target="_blank" rel="noopener" >Chirpy</a></p></footer></div></div><div id="search-result-wrapper" class="d-flex justify-content-center d-none"><div class="col-11 content"><div id="search-hints"><section><h2 class="panel-heading">热门标签</h2><div class="d-flex flex-wrap mt-3 mb-1 me-3"> <a class="post-tag btn btn-outline-primary" href="/tags/pcie/">PCIe</a> <a class="post-tag btn btn-outline-primary" href="/tags/flit-mode/">Flit Mode</a> <a class="post-tag btn btn-outline-primary" href="/tags/ac-coupling/">AC Coupling</a> <a class="post-tag btn btn-outline-primary" href="/tags/ari/">ARI</a> <a class="post-tag btn btn-outline-primary" href="/tags/bus-number/">Bus Number</a> <a class="post-tag btn btn-outline-primary" href="/tags/ffe/">FFE</a> <a class="post-tag btn btn-outline-primary" href="/tags/floating-point/">Floating Point</a> <a class="post-tag btn btn-outline-primary" href="/tags/gen6/">Gen6</a> <a class="post-tag btn btn-outline-primary" href="/tags/ieee-754/">IEEE 754</a> <a class="post-tag btn btn-outline-primary" href="/tags/ltssm/">LTSSM</a></div></section></div><div id="search-results" class="d-flex flex-wrap justify-content-center text-muted mt-3"></div></div></div></div><aside aria-label="Scroll to Top"> <button id="back-to-top" type="button" class="btn btn-lg btn-box-shadow"> <i class="fas fa-angle-up"></i> </button></aside></div><div id="mask" class="d-none position-fixed w-100 h-100 z-1"></div><aside id="notification" class="toast w-auto rounded-5 text-nowrap" role="alert" aria-live="assertive" aria-atomic="true" data-bs-animation="true" data-bs-autohide="false" ><div class="d-flex align-items-center"><div class="toast-body ps-3">发现新内容</div><button type="button" class="btn btn-primary btn-sm rounded-2 py-0" aria-label="Update" >更新</button> <button type="button" class="btn-close mx-3 ms-2" data-bs-dismiss="toast" aria-label="Close" ></button></div></aside><script> document.addEventListener('DOMContentLoaded', () => { SimpleJekyllSearch({ searchInput: document.getElementById('search-input'), resultsContainer: document.getElementById('search-results'), json: '/assets/js/data/search.json', searchResultTemplate: '<article class="px-1 px-sm-2 px-lg-4 px-xl-0"><header><h2><a href="{url}">{title}</a></h2><div class="post-meta d-flex flex-column flex-sm-row text-muted mt-1 mb-1"> {categories} {tags}</div></header><p>{content}</p></article>', noResultsText: '<p class="mt-5">搜索结果为空</p>', templateMiddleware: function(prop, value, template) { if (prop === 'categories') { if (value === '') { return `${value}`; } else { return `<div class="me-sm-4"><i class="far fa-folder fa-fw"></i>${value}</div>`; } } if (prop === 'tags') { if (value === '') { return `${value}`; } else { return `<div><i class="fa fa-tag fa-fw"></i>${value}</div>`; } } } }); }); </script>
