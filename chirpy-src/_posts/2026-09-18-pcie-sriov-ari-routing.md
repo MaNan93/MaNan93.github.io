@@ -557,7 +557,7 @@ ARI Forwarding Enable
 
 ---
 
-### 9. 为什么 DSP 必须支持 ARI Forwarding
+## 9. 为什么 DSP 必须支持 ARI Forwarding
 
 假设收到：
 
