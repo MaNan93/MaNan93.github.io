@@ -284,9 +284,178 @@ Function 0 ~ 65
 
 ## 7. Endpoint / PF：ARI Extended Capability
 
-一个 ARI Device 的 Function 会实现 **ARI Extended Capability**。
+一个 ARI Device 的 Function 会实现 **ARI Extended Capability**。ARI Extended Capability ID 为 `000Eh`，结构很小：一个 Extended Capability Header、一个 ARI Capability Register，以及一个 ARI Control Register。
 
-ARI Extended Capability 主要用于描述和管理 ARI Device 内部 Function。
+下面这个 Explorer 可以直接点字段查看含义。默认先展示 Capability Register；切到 Control 可以看可编程控制项。
+
+<div id="ari-cap-explorer" class="ari-cap-explorer">
+  <div class="ari-cap-toolbar" role="tablist" aria-label="ARI register selector">
+    <button type="button" class="ari-tab is-active" data-reg="cap" role="tab" aria-selected="true">ARI Capability</button>
+    <button type="button" class="ari-tab" data-reg="ctl" role="tab" aria-selected="false">ARI Control</button>
+    <span class="ari-cap-id">Extended Capability ID: <code>000Eh</code></span>
+  </div>
+
+  <div class="ari-reg-title">
+    <strong id="ari-reg-name">ARI Capability Register</strong>
+    <span id="ari-reg-offset">Offset +04h</span>
+  </div>
+
+  <div id="ari-cap-view" class="ari-reg-view">
+    <button type="button" class="ari-field ari-rsvd" style="--start:16;--span:16" data-field="cap-rsvd">31:16 Reserved</button>
+    <button type="button" class="ari-field ari-next" style="--start:8;--span:8" data-field="next-fn">15:8 Next Function Number</button>
+    <button type="button" class="ari-field ari-rsvd" style="--start:2;--span:6" data-field="cap-rsvd2">7:2 Reserved</button>
+    <button type="button" class="ari-field ari-acs" style="--start:1;--span:1" data-field="acs-cap">1 A</button>
+    <button type="button" class="ari-field ari-mfvc" style="--start:0;--span:1" data-field="mfvc-cap">0 M</button>
+  </div>
+
+  <div id="ari-ctl-view" class="ari-reg-view" hidden>
+    <button type="button" class="ari-field ari-rsvd" style="--start:7;--span:9" data-field="ctl-rsvd-hi">15:7 Reserved</button>
+    <button type="button" class="ari-field ari-group" style="--start:4;--span:3" data-field="function-group">6:4 Function Group</button>
+    <button type="button" class="ari-field ari-rsvd" style="--start:2;--span:2" data-field="ctl-rsvd-mid">3:2 Reserved</button>
+    <button type="button" class="ari-field ari-acs" style="--start:1;--span:1" data-field="acs-en">1 A Enable</button>
+    <button type="button" class="ari-field ari-mfvc" style="--start:0;--span:1" data-field="mfvc-en">0 M Enable</button>
+  </div>
+
+  <div class="ari-bit-scale" aria-hidden="true">
+    <span>31</span><span>24</span><span>16</span><span>8</span><span>0</span>
+  </div>
+
+  <div id="ari-field-detail" class="ari-field-detail" aria-live="polite">
+    <div class="ari-detail-kicker">点击上方字段查看说明</div>
+    <h4>ARI Capability Explorer</h4>
+    <p>这里展示的是 Endpoint Function 内的 ARI Extended Capability。它与 Downstream Port 中的 <code>ARI Forwarding Supported/Enable</code> 不是同一个寄存器。</p>
+  </div>
+
+  <div class="ari-path">
+    <button type="button" class="ari-path-node" data-topic="endpoint">ARI Device / EP</button>
+    <span>⇄</span>
+    <button type="button" class="ari-path-node" data-topic="dsp">Root Port / DSP</button>
+    <span>⇄</span>
+    <button type="button" class="ari-path-node" data-topic="usp">Switch USP</button>
+  </div>
+</div>
+
+<style>
+#ari-cap-explorer{margin:1rem 0 1.3rem;padding:1rem;border:1px solid var(--main-border-color,#d7dce1);border-radius:.8rem;background:rgba(127,169,199,.045)}
+#ari-cap-explorer .ari-cap-toolbar{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:.8rem}
+#ari-cap-explorer .ari-tab{border:1px solid var(--main-border-color,#d7dce1);border-radius:.5rem;padding:.45rem .72rem;background:var(--main-bg,#fff);color:inherit;font-weight:650;cursor:pointer}
+#ari-cap-explorer .ari-tab:hover,#ari-cap-explorer .ari-tab:focus-visible{border-color:#4b86b4;outline:none}
+#ari-cap-explorer .ari-tab.is-active{background:rgba(75,134,180,.15);border-color:#4b86b4;color:#2f75a8}
+#ari-cap-explorer .ari-cap-id{margin-left:auto;color:var(--text-muted-color,#777);font-size:.84rem}
+#ari-cap-explorer .ari-reg-title{display:flex;justify-content:space-between;gap:1rem;align-items:baseline;margin:.25rem 0 .45rem}
+#ari-cap-explorer .ari-reg-title span{color:var(--text-muted-color,#777);font-size:.82rem}
+#ari-cap-explorer .ari-reg-view{display:grid;grid-template-columns:repeat(32,minmax(0,1fr));min-height:4.2rem;border:1px solid var(--main-border-color,#d7dce1);border-radius:.55rem;overflow:hidden;background:var(--main-bg,#fff)}
+#ari-cap-explorer .ari-field{grid-column:calc(32 - var(--start) - var(--span) + 1)/span var(--span);border:0;border-right:1px solid var(--main-border-color,#d7dce1);padding:.55rem .3rem;min-width:0;background:rgba(127,169,199,.10);color:inherit;font-size:.73rem;font-weight:650;line-height:1.2;cursor:pointer;overflow-wrap:anywhere}
+#ari-cap-explorer .ari-field:hover,#ari-cap-explorer .ari-field:focus-visible{outline:2px solid rgba(75,134,180,.52);outline-offset:-2px;z-index:1}
+#ari-cap-explorer .ari-field.is-active{outline:2px solid rgba(107,166,110,.65);outline-offset:-2px;background:rgba(107,166,110,.18)}
+#ari-cap-explorer .ari-rsvd{background:rgba(120,120,120,.07);color:var(--text-muted-color,#777);font-weight:500}
+#ari-cap-explorer .ari-next{background:rgba(75,134,180,.15)}
+#ari-cap-explorer .ari-group{background:rgba(149,117,205,.14)}
+#ari-cap-explorer .ari-mfvc{background:rgba(240,173,78,.16)}
+#ari-cap-explorer .ari-acs{background:rgba(91,192,190,.16)}
+#ari-cap-explorer .ari-bit-scale{display:flex;justify-content:space-between;padding:.25rem .2rem 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;color:var(--text-muted-color,#777)}
+#ari-cap-explorer .ari-field-detail{margin-top:.85rem;padding:.8rem .9rem;border-left:3px solid #4b86b4;border-radius:.35rem;background:var(--main-bg,#fff)}
+#ari-cap-explorer .ari-field-detail h4{margin:.1rem 0 .35rem;font-size:1rem;color:#2f75a8}
+#ari-cap-explorer .ari-field-detail p{margin:.35rem 0;line-height:1.55}
+#ari-cap-explorer .ari-detail-kicker{font-size:.74rem;color:var(--text-muted-color,#777);text-transform:uppercase;letter-spacing:.03em}
+#ari-cap-explorer .ari-path{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:.45rem;align-items:center;margin-top:.9rem}
+#ari-cap-explorer .ari-path-node{border:1px solid var(--main-border-color,#d7dce1);border-radius:.5rem;padding:.55rem .5rem;background:var(--main-bg,#fff);color:inherit;cursor:pointer;font-weight:600}
+#ari-cap-explorer .ari-path-node:hover,#ari-cap-explorer .ari-path-node:focus-visible{border-color:#4b86b4;outline:none;background:rgba(75,134,180,.07)}
+#ari-cap-explorer .ari-path span{text-align:center;color:var(--text-muted-color,#777)}
+@media(max-width:720px){
+  #ari-cap-explorer{padding:.75rem}
+  #ari-cap-explorer .ari-cap-id{width:100%;margin-left:0}
+  #ari-cap-explorer .ari-reg-view{grid-template-columns:repeat(16,minmax(0,1fr));min-height:auto}
+  #ari-cap-explorer .ari-field{grid-column:1/-1!important;border-right:0;border-bottom:1px solid var(--main-border-color,#d7dce1);text-align:left;padding:.55rem .65rem}
+  #ari-cap-explorer .ari-bit-scale{display:none}
+  #ari-cap-explorer .ari-path{grid-template-columns:1fr}
+  #ari-cap-explorer .ari-path span{transform:rotate(90deg)}
+}
+</style>
+
+<script>
+(()=>{
+const root=document.getElementById('ari-cap-explorer');
+if(!root||root.dataset.ready)return;
+root.dataset.ready='1';
+const regName=root.querySelector('#ari-reg-name');
+const regOffset=root.querySelector('#ari-reg-offset');
+const capView=root.querySelector('#ari-cap-view');
+const ctlView=root.querySelector('#ari-ctl-view');
+const detail=root.querySelector('#ari-field-detail');
+const info={
+  'next-fn':{
+    k:'ARI Capability Register · bits 15:8 · RO',
+    t:'Next Function Number',
+    p:'对 non-VF Function，这个字段给出同一 ARI Device 中下一个更高编号 Function；Function 0 是链表起点。若不存在更高编号 Function，则为 00h。对 VF，此字段未定义，因为 VF 的定位由 SR-IOV 的 First VF Offset 和 VF Stride 完成。'
+  },
+  'mfvc-cap':{
+    k:'ARI Capability Register · bit 0 · RO',
+    t:'MFVC Function Groups Capability (M)',
+    p:'仅 Function 0 有意义；其他 Function 必须为 0。置 1 表示设备支持以 Function Group 粒度进行 MFVC Function Arbitration。若 SR-IOV Device 使用带可选 Function Arbitration Table 的 MFVC Extended Capability 且消耗多个 Bus Number，则 Function 0 必须置此能力位。'
+  },
+  'acs-cap':{
+    k:'ARI Capability Register · bit 1 · RO',
+    t:'ACS Function Groups Capability (A)',
+    p:'仅 Function 0 有意义；其他 Function 必须为 0。置 1 表示设备支持以 Function Group 粒度进行 ACS P2P Egress Control。若 SR-IOV Device 实现带可选 Egress Control Vector 的 ACS Capability 且消耗多个 Bus Number，则 Function 0 必须置此能力位。'
+  },
+  'function-group':{
+    k:'ARI Control Register · bits 6:4 · RW',
+    t:'Function Group',
+    p:'给当前 Function 分配 Function Group Number。只有 Function 0 宣告了 MFVC Function Groups Capability 或 ACS Function Groups Capability 时该字段才有实际用途；否则要求固定为 000b。'
+  },
+  'mfvc-en':{
+    k:'ARI Control Register · bit 0 · RW',
+    t:'MFVC Function Groups Enable',
+    p:'仅 Function 0 可编程；其他 Function 必须为 0。置 1 后，ARI Device 将 MFVC Function Arbitration Table 中的表项解释为 Function Group Number，而不是单独的 Function Number。'
+  },
+  'acs-en':{
+    k:'ARI Control Register · bit 1 · RW',
+    t:'ACS Function Groups Enable',
+    p:'仅 Function 0 可编程；其他 Function 必须为 0。置 1 后，ARI Device 中各 Function 的 ACS Egress Control Vector 按 Function Group Number 关联，而不是按单独 Function Number。'
+  },
+  'cap-rsvd':{k:'ARI Capability Register',t:'Reserved',p:'保留字段，不承担 ARI Function discovery 或 SR-IOV VF 定位功能。'},
+  'cap-rsvd2':{k:'ARI Capability Register',t:'Reserved',p:'保留字段。'},
+  'ctl-rsvd-hi':{k:'ARI Control Register',t:'Reserved',p:'保留字段。'},
+  'ctl-rsvd-mid':{k:'ARI Control Register',t:'Reserved',p:'保留字段。'},
+  endpoint:{
+    k:'组件职责',
+    t:'ARI Device / Endpoint',
+    p:'Endpoint Function 侧实现 ARI Extended Capability，用来描述 Extended Function discovery，以及可选的 MFVC / ACS Function Group 控制。SR-IOV VF 本身仍由 First VF Offset / VF Stride 定位。'
+  },
+  dsp:{
+    k:'组件职责',
+    t:'Root Port / Switch DSP',
+    p:'ARI Device 正上方的 Downstream Port 负责 ARI Forwarding。只有软件确认下面是 ARI Device 并使能 ARI Forwarding 后，Function Number > 7 的 Extended Functions 才能被访问。这里的 ARI Forwarding 不属于 Endpoint 的 ARI Extended Capability。'
+  },
+  usp:{
+    k:'组件职责',
+    t:'Switch USP',
+    p:'Switch USP 不负责“紧邻某个 ARI Endpoint 的 Extended Function 解码”。真正解除传统 Device Number=0 限制的是该 ARI Device 正上方的 Root Port 或 Switch DSP。USP 继续承担正常上游转发。'
+  }
+};
+function show(key,el){
+  const x=info[key];
+  if(!x)return;
+  root.querySelectorAll('.ari-field.is-active').forEach(n=>n.classList.remove('is-active'));
+  if(el&&el.classList.contains('ari-field'))el.classList.add('is-active');
+  detail.innerHTML='<div class="ari-detail-kicker">'+x.k+'</div><h4>'+x.t+'</h4><p>'+x.p+'</p>';
+}
+root.querySelectorAll('.ari-field').forEach(el=>el.addEventListener('click',()=>show(el.dataset.field,el)));
+root.querySelectorAll('.ari-path-node').forEach(el=>el.addEventListener('click',()=>show(el.dataset.topic,el)));
+root.querySelectorAll('.ari-tab').forEach(tab=>tab.addEventListener('click',()=>{
+  const ctl=tab.dataset.reg==='ctl';
+  root.querySelectorAll('.ari-tab').forEach(x=>{x.classList.toggle('is-active',x===tab);x.setAttribute('aria-selected',String(x===tab));});
+  capView.hidden=ctl;
+  ctlView.hidden=!ctl;
+  regName.textContent=ctl?'ARI Control Register':'ARI Capability Register';
+  regOffset.textContent=ctl?'Offset +06h':'Offset +04h';
+  root.querySelectorAll('.ari-field.is-active').forEach(n=>n.classList.remove('is-active'));
+}));
+})();
+</script>
+
+ARI Capability 中比较重要的字段包括：
 
 其中比较典型的字段包括：
 
