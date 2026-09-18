@@ -1,31 +1,92 @@
 ---
-title: PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与端口职责
+title: PCIe SR-IOV 与 ARI：VF Routing ID、Bus Number 与 ARI Forwarding
 date: 2026-09-18 13:50:00 +0800
 categories: [PCIe, Virtualization]
 tags: [PCIe, SR-IOV, ARI, VF, PF, Routing ID, Bus Number]
 permalink: /pcie-sriov-ari-routing/
-description: 梳理 PCIe SR-IOV 中 VF Routing ID 的生成方式，以及 non-ARI / ARI hierarchy 下 Bus Number 的消耗差异，并说明 EP、Root Port、Switch DSP、USP 各自与 ARI Capability / ARI Forwarding 的关系。
+description: 梳理 SR-IOV 的 PF/VF Routing ID、First VF Offset/VF Stride、ARI Extended Capability、ARI Forwarding、ARI Capable Hierarchy，以及 Type 0/Type 1 Configuration Request 和 Bus Number 消耗之间的关系。
 toc: true
 ---
 
-SR-IOV 里一个很容易混淆的问题是：
+SR-IOV 和 ARI 放在一起看时，最容易混淆的是下面三件事：
 
-> VF 很多时，为什么有时会占用额外 Bus Number，而有时又可以全部留在同一个 Bus？
+1. **ARI Extended Capability**
+2. **ARI Forwarding**
+3. **SR-IOV Control.ARI Capable Hierarchy**
 
-核心取决于两件事：
+它们不是同一个东西。
 
-1. **VF Routing ID 如何生成**
-2. **当前 PCIe hierarchy 是否启用了 ARI（Alternative Routing-ID Interpretation）**
+这篇文章从 Routing ID 出发，把 PF/VF 的地址生成、Configuration Request 类型、Bus Number 消耗，以及 ARI 的真正作用串起来。
 
 ---
 
-## 1. Routing ID 的基本格式
+## 1. 先把三个 ARI 概念分开
 
-PCIe 的 Routing ID / Requester ID / Completer ID 都是 16 bit。
+### ARI Extended Capability
 
-### Non-ARI
+这是 **ARI Device 内部 Function 自己实现的 Extended Capability**。
 
-传统解释方式：
+对于不在 Root Complex 内的 SR-IOV Device，PCIe 规范要求每个 Function 都实现 ARI Extended Capability。
+
+它的主要内容包括：
+
+- `Next Function Number`
+- MFVC Function Group Capability / Enable
+- ACS Function Group Capability / Enable
+- Function Group
+
+其中：
+
+> `Next Function Number` 对 non-VF Function 有意义；对 VF 是 undefined，因为 VF 不是靠它发现的。
+
+### ARI Forwarding
+
+这是 **ARI Device 正上方 Root Port / Switch Downstream Port 的能力和开关**。
+
+关键字段：
+
+```text
+Device Capabilities 2
+  ARI Forwarding Supported
+
+Device Control 2
+  ARI Forwarding Enable
+```
+
+它决定 Downstream Port 是否允许访问 ARI Extended Function，也就是 Function Number > 7。
+
+### SR-IOV Control.ARI Capable Hierarchy
+
+这是 **最低编号 PF 的 SR-IOV Extended Capability 中的控制位**。
+
+它是 Device 的一个 hint：
+
+> 软件已经确认上一级 Root Port / Switch DSP 的 ARI Forwarding 已经开启。
+
+规范要求软件让它与正上方 Downstream Port 的 `ARI Forwarding Enable` 匹配。
+
+因此，后文统一使用下面的术语：
+
+```text
+ARI Extended Capability implemented
+    = Function 实现了 ARI capability
+
+ARI Forwarding Enable = 1
+    = 上游 Root Port / DSP 真正开启 ARI forwarding
+
+ARI Capable Hierarchy = 1
+    = SR-IOV Device 按 ARI hierarchy 分配 VF RID
+```
+
+不要把这三件事都简称为“ARI enabled”。
+
+---
+
+## 2. Routing ID：ARI 没有增加位宽
+
+PCIe Routing ID 仍然是 16 bit。
+
+### 传统解释
 
 ```text
 15             8 7             3 2       0
@@ -35,15 +96,15 @@ PCIe 的 Routing ID / Requester ID / Completer ID 都是 16 bit。
       8 bit          5 bit        3 bit
 ```
 
-即：
+也就是：
 
 ```text
-Bus[7:0] + Device[4:0] + Function[2:0]
+Bus[7:0] | Device[4:0] | Function[2:0]
 ```
 
-### ARI
+### ARI 解释
 
-ARI 并没有增加 Routing ID 的位宽，仍然是 16 bit，只是重新解释低 8 bit：
+ARI 把低 8 bit 合并为一个 Function Number：
 
 ```text
 15             8 7                         0
@@ -56,138 +117,404 @@ ARI 并没有增加 Routing ID 的位宽，仍然是 16 bit，只是重新解释
 即：
 
 ```text
-Bus[7:0] + Function[7:0]
+Bus[7:0] | Function[7:0]
 ```
 
-所以同一个数值，例如：
+例如：
 
 ```text
 RID = 0x0325
 ```
 
-在两种模式下的解释不同：
+传统解释：
 
-| 模式 | 解释 |
-|---|---|
-| Non-ARI | Bus 03, Device 04, Function 5 |
-| ARI | Bus 03, Function 0x25 = 37 |
+```text
+Bus      = 03
+Device   = 04
+Function = 5
+```
 
-**Routing ID 的 16-bit 数值没变，变的是低 8 bit 的解释方式。**
+ARI 解释：
+
+```text
+Bus      = 03
+Function = 0x25 = 37
+```
+
+注意：在 ARI Device 中，Device Number 是 **implied 0**，不能把 `RID[7:3]` 再解释成真实 Device Number。
 
 ---
 
-## 2. SR-IOV 的 VF Routing ID 怎么算
+## 3. VF Routing ID 的核心公式
 
-SR-IOV Capability 中有两个关键字段：
+SR-IOV 中，VF 的位置不是靠 ARI `Next Function Number` 找出来的。
+
+每个 PF 自己的 SR-IOV Extended Capability 中都有：
 
 - `First VF Offset`
 - `VF Stride`
 
-VF Routing ID 按下面的方式计算：
+它们都是 **16-bit Routing ID offset**。
+
+公式为：
 
 ```text
-VF1 RID = PF RID + First VF Offset
+VF1_RID = PF_RID + FirstVFOffset
 
-VFn RID = PF RID
-        + First VF Offset
-        + (n - 1) * VF Stride
+VFn_RID = PF_RID
+        + FirstVFOffset
+        + (n - 1) * VFStride
 ```
 
-所有运算都是 16-bit Routing ID 运算。
+所有运算都是 16-bit unsigned arithmetic，carry 丢弃。
 
-因此是否跨 Bus，真正应该看：
+例如：
 
 ```text
-PF RID + First VF Offset + (NumVFs - 1) * VF Stride
+PF0 RID          = 0x0300
+First VF Offset  = 0x0002
+VF Stride        = 0x0002
 ```
 
-是否让 RID 从：
+那么：
 
 ```text
-xxFF
+PF0.VF0 = 0x0302 -> 03:00.2
+PF0.VF1 = 0x0304 -> 03:00.4
+PF0.VF2 = 0x0306 -> 03:00.6
 ```
-
-进入：
-
-```text
-(xx+1)00
-```
-
-所以不能简单地只看 VF 数量。
-
-例如即使 VF 很少，如果：
-
-```text
-VF Stride = 64
-```
-
-也可能很快跨到下一个 Bus。
 
 ---
 
-## 3. Non-ARI SR-IOV：为什么 VF 多了必须占 Bus Number
+## 4. 不同 PF 的 First VF Offset 不要求相同
 
-对于位于 Downstream Port 后面的 SR-IOV Endpoint，在 non-ARI hierarchy 下，其 Device Number 必须保持为 0。
+`First VF Offset` 和 `VF Stride` 都属于 **各自 PF 的 SR-IOV Capability**。
 
-也就是说同一个 Bus 上，这个 Endpoint 实际可用的是：
+协议没有要求所有 PF 必须使用相同的值。
 
-```text
-xx:00.0
-xx:00.1
-...
-xx:00.7
-```
-
-一共只有 8 个 Function RID。
-
-不能继续使用：
+例如：
 
 ```text
-xx:01.0
-xx:01.1
-...
+PF0:
+  First VF Offset = 4
+  VF Stride       = 3
+
+PF1:
+  First VF Offset = 7
+  VF Stride       = 5
 ```
 
-来表示同一个 SR-IOV Device 的更多 VF。
+都是可以的。
+
+真正必须满足的是：
+
+> 所有 PF 和 VF 最终计算出来的 16-bit Routing ID 必须唯一，不能发生重叠。
+
+另外，最低编号 PF 的 `ARI Capable Hierarchy` 状态可以影响各 PF 返回的 `First VF Offset` / `VF Stride`。
+
+---
+
+## 5. 一个 2 PF 的同 Bus 例子
+
+假设 captured Bus 是 03：
+
+```text
+03:00.0  PF0
+03:00.1  PF1
+```
+
+希望 VF 交错排列：
+
+```text
+03:00.2  PF0.VF0
+03:00.3  PF1.VF0
+03:00.4  PF0.VF1
+03:00.5  PF1.VF1
+03:00.6  PF0.VF2
+03:00.7  PF1.VF2
+```
+
+可以配置为：
+
+```text
+PF0 RID = 03:00.0
+First VF Offset = 2
+VF Stride       = 2
+
+PF1 RID = 03:00.1
+First VF Offset = 2
+VF Stride       = 2
+```
+
+计算结果：
+
+```text
+PF0.VF0 = 03:00.2
+PF1.VF0 = 03:00.3
+
+PF0.VF1 = 03:00.4
+PF1.VF1 = 03:00.5
+
+PF0.VF2 = 03:00.6
+PF1.VF2 = 03:00.7
+```
+
+这时传统一个 Device 的 8 个 Function 槽位已经全部用完。
+
+---
+
+## 6. Type 0 CFG 到达 EP 后，谁负责区分 PF / VF
+
+对于直接挂在 Root Port / Switch DSP 后面的 Endpoint：
+
+```text
+Root Port / DSP
+      |
+      | PCIe Link
+      v
+      EP
+```
+
+在没有开启 ARI Forwarding 的传统配置路由下，Downstream Port 会先处理 Device Number。
+
+对于这个 Link：
+
+```text
+Device = 0
+    -> 可以向下游 Device 发出 Type 0 CFG
+
+Device = 1~31
+    -> Downstream Port 自己返回 UR
+```
 
 因此：
 
-```text
-PF + VF > 8
-```
+> 一个合法到达 EP 的 Type 0 Configuration Request，本质上已经是在访问这个 EP 内部某个 Function。
 
-时，如果没有 ARI，就需要进入后续 Bus Number：
+EP 真正需要 decode 的是：
 
 ```text
-Bus n:
-n:00.0 ~ n:00.7
-
-Bus n+1:
-(n+1):00.0 ~ (n+1):00.7
-
-Bus n+2:
-(n+2):00.0 ~ (n+2):00.7
+Function -> PF ?
+         -> enabled VF ?
+         -> unimplemented Function ?
 ```
 
-所以 non-ARI SR-IOV 的代价之一，就是可能大量消耗 Bus Number。
+例如：
+
+```text
+Function 0 -> PF0
+Function 1 -> PF1
+Function 2 -> PF0.VF0
+Function 3 -> PF1.VF0
+...
+```
+
+如果 Function 不存在，则按 Unsupported Request 处理。
 
 ---
 
-## 4. ARI SR-IOV：为什么同一 Bus 可以有 256 个 Function
+## 7. PF 全部在 captured Bus，VF 可以去额外 Bus
 
-启用 ARI 后：
+PCIe SR-IOV 有一个重要规则：
+
+> 所有 PF 必须位于 Device 的 captured Bus Number。
+
+但 VF 可以位于额外 Bus Number。
+
+因此完全可以设计成：
 
 ```text
-Device[4:0] + Function[2:0]
+Bus 03:
+03:00.0  PF0
+03:00.1  PF1
+03:00.2  PF2
+03:00.3  PF3
+
+Bus 04 / 05 / 06 / ...:
+只放 VF
 ```
 
-被整体解释成：
+一个非常直观的做法就是：
+
+```text
+First VF Offset = 0x0100
+VF Stride       = 0x0100
+```
+
+注意这里是 `0x0100`，不是 `0x10000`。
+
+因为字段本身只有 16 bit。
+
+`0x0100` 的含义正好是：
+
+```text
+RID += 0x0100
+    -> Bus Number + 1
+    -> 低 8 bit DevFn 保持不变
+```
+
+---
+
+## 8. 例子：每个 VF 单独占一个 Bus
+
+假设：
+
+```text
+PF0 RID          = 03:00.0
+First VF Offset  = 0x0100
+VF Stride        = 0x0100
+```
+
+那么：
+
+```text
+PF0      = 03:00.0
+PF0.VF0  = 04:00.0
+PF0.VF1  = 05:00.0
+PF0.VF2  = 06:00.0
+PF0.VF3  = 07:00.0
+...
+```
+
+从公式看：
+
+```text
+VF0 = 0x0300 + 0x0100 = 0x0400
+VF1 = 0x0300 + 0x0100 + 0x0100 = 0x0500
+VF2 = 0x0600
+...
+```
+
+这种布局协议上是可行的。
+
+但代价也非常明显：
+
+> 一个 VF 就消耗一个额外 Bus Number。
+
+如果一个 PF 有 64 个 VF，就可能快速吃掉几十个 Bus Number。
+
+---
+
+## 9. VF 跨 Bus 后，Configuration Request 不会被转成 Type 0
+
+这是理解 SR-IOV 多 Bus 最关键的一点。
+
+### captured Bus 上的 Function
+
+例如：
+
+```text
+03:00.0 PF0
+03:00.1 PF1
+03:00.2 VF...
+```
+
+访问 Bus 03 时，上一级 Downstream Port可以把对应 Configuration Request 转成 Type 0：
+
+```text
+RC
+ -> Type 1 CFG to Bus 03
+ -> Root Port / DSP
+ -> Type 0 CFG
+ -> EP
+```
+
+### additional Bus 上的 VF
+
+例如：
+
+```text
+04:00.0 PF0.VF0
+```
+
+访问它时：
+
+```text
+RC
+ -> Type 1 CFG, Bus = 04
+ -> Root Port / DSP
+ -> 仍然作为 Type 1 CFG 向下转发
+ -> SR-IOV Device
+ -> 内部根据 VF RID 规则命中 VF
+```
+
+协议明确要求：
+
+- captured Bus 上的 enabled VF 可以处理 Type 0 Configuration Request
+- 不在 captured Bus 上的 enabled VF 必须能够处理针对它的 Type 1 Configuration Request
+
+因此不能把 SR-IOV Endpoint 简化为“只处理 Type 0 CFG”。
+
+---
+
+## 10. EP 如何判断一个 Type 1 CFG 是不是自己的 VF
+
+核心还是完整的 VF RID 算法。
+
+对于每个 PF：
+
+```text
+VF_RID(n)
+=
+PF_RID
++ FirstVFOffset
++ n * VFStride
+```
+
+Device 可以根据：
+
+- Target Bus
+- Target Device/Function
+- PF 的 Routing ID
+- First VF Offset
+- VF Stride
+- NumVFs / VF Enable
+
+判断请求是否命中某个 enabled VF。
+
+如果命中：
+
+```text
+正常访问 VF Configuration Space
+```
+
+如果没有任何 enabled VF 对应这个 RID：
+
+```text
+UR
+```
+
+同时，针对 Device captured Bus 的 Type 1 Configuration Request 本身也不是正常的 PF/VF 访问路径，应按协议的 Unsupported Request 规则处理。
+
+---
+
+## 11. 为什么 ARI Forwarding 能显著节省 Bus Number
+
+如果没有利用 ARI 8-bit Function Number 空间，一个 Bus 内传统 Function Number 只有：
+
+```text
+Function 0 ~ 7
+```
+
+当 PF/VF 数量很多时，VF 很容易被 First VF Offset / VF Stride 推到额外 Bus。
+
+而当：
+
+```text
+上游 Root Port / DSP:
+ARI Forwarding Enable = 1
+
+最低编号 PF:
+ARI Capable Hierarchy = 1
+```
+
+时，Device 可以把低 8 bit 当成：
 
 ```text
 Function[7:0]
 ```
 
-于是一个 Bus 内可以使用：
+于是同一个 captured Bus 上可以容纳：
 
 ```text
 Function 0 ~ 255
@@ -196,97 +523,119 @@ Function 0 ~ 255
 例如：
 
 ```text
-RID 0x0300 -> Bus 03, Function 0
-RID 0x0301 -> Bus 03, Function 1
+Bus 03:
+Function 0
+Function 1
 ...
-RID 0x0308 -> Bus 03, Function 8
-...
-RID 0x03FF -> Bus 03, Function 255
+Function 255
 ```
 
-因此，在 Routing ID 分配足够紧凑的情况下：
-
-```text
-PF + VF <= 256
-```
-
-可以全部放在同一个 Bus。
-
-如果继续增加，Routing ID 会自然跨过：
-
-```text
-03FF -> 0400
-```
-
-此时仍然需要额外 Bus Number。
-
-PCIe 规范给出的典型例子是：
-
-```text
-PF0 + VF0~VF255   -> 第一个 Bus
-VF256~VF511       -> 第二个 Bus
-VF512~            -> 第三个 Bus
-```
-
-但要注意：
-
-> “256 个才跨 Bus”只适用于 First VF Offset / VF Stride 足够紧凑的情况。
+只要 First VF Offset / VF Stride 的布局足够紧凑，大量 PF/VF 就可以共用同一个 Bus。
 
 ---
 
-## 5. 2 PF × 32 VF 的例子
+## 12. ARI Forwarding 的准确作用
 
-假设：
+ARI Forwarding 不是 Bus Number 路由功能。
 
-```text
-PF0 + PF1
-每个 PF 32 VF
-
-总数 = 2 + 64 = 66 Functions
-```
-
-### Non-ARI
-
-每个 Bus 对该 Device 最多只有 8 个 Function：
+Bus Number 的转发仍然由：
 
 ```text
-Bus n     : 8
-Bus n+1   : 8
-Bus n+2   : 8
-...
+Secondary Bus Number
+Subordinate Bus Number
 ```
 
-因此需要多个 Bus Number。
+决定。
 
-### ARI
+ARI Forwarding 真正改变的是：
 
-如果 VF RID 分配紧凑：
+> Downstream Port 在判断 Type 1 Configuration Request 是否可以转换成 Type 0 时，不再要求传统 Device Number 字段必须等于 0。
+
+例如目标低 8 bit：
 
 ```text
-Bus n:
-Function 0 ~ 65
+0x25
 ```
 
-66 个 PF/VF Routing ID 可以全部放在同一个 Bus。
+传统解释：
+
+```text
+Device   = 4
+Function = 5
+```
+
+如果 ARI Forwarding 没开，这种传统 Device Number 非 0 的访问不会被当成直连 Endpoint 的正常 Function 访问。
+
+如果 ARI Forwarding 已开，则：
+
+```text
+0x25 -> ARI Function Number 37
+```
+
+此时 Device Number 不再单独存在，ARI Device 的 implied Device Number 仍然是 0。
 
 ---
 
-## 6. ARI 到底是谁支持：EP、DSP、Root Port、USP？
+## 13. ARI Extended Capability 到底有什么用
 
-这里要区分两个概念：
+ARI Extended Capability 和 ARI Forwarding 不是一回事。
 
-- **ARI Device**
-- **ARI Downstream Port / ARI Forwarding**
+它主要提供两类功能。
 
-它们不是一回事。
+### 13.1 non-VF Function 的快速枚举
+
+ARI Device 的 Function Number 可以是 sparse / non-sequential：
+
+```text
+Function 0
+Function 8
+Function 32
+Function 100
+```
+
+这时软件不必扫完 0~255。
+
+可以利用：
+
+```text
+Next Function Number
+```
+
+形成链：
+
+```text
+F0 -> F8 -> F32 -> F100 -> End
+```
+
+这对多个 PF / 普通 non-VF Function 的枚举尤其有价值。
+
+### 13.2 Function Group
+
+ARI Capability / Control 还提供：
+
+- MFVC Function Group
+- ACS Function Group
+- Function Group Number
+
+这些机制可以同时适用于 PF 和 VF。
+
+### VF 不靠 Next Function Number 枚举
+
+VF 的发现依赖：
+
+```text
+First VF Offset
+VF Stride
+NumVFs
+```
+
+因此：
+
+> ARI 的 8-bit Function Number 空间对 VF 很重要，但 ARI Capability 里的 `Next Function Number` 链表对 VF discovery 并不重要。
 
 ---
 
-## 7. Endpoint / PF：ARI Extended Capability
-
-一个 ARI Device 的 Function 会实现 **ARI Extended Capability**。ARI Extended Capability ID 为 `000Eh`，结构很小：一个 Extended Capability Header、一个 ARI Capability Register，以及一个 ARI Control Register。
-
-下面这个 Explorer 可以直接点字段查看含义。默认先展示 Capability Register；切到 Control 可以看可编程控制项。
+## 14. ARI Extended Capability Explorer
 
 <div id="ari-cap-explorer" class="ari-cap-explorer">
   <div class="ari-explorer-top">
@@ -478,414 +827,158 @@ root.querySelectorAll('.ari-tab').forEach(tab=>tab.addEventListener('click',()=>
 })();
 </script>
 
-> **规范上的一个关键点：** ARI Extended Capability 通常是可选能力，但对于 **不在 Root Complex 内的 SR-IOV Device**，规范要求它的每个 Function 都实现 ARI Extended Capability。这个“必须实现”不等于 hierarchy 必须开启 ARI；软件仍可以让设备工作在 non-ARI hierarchy 下。
-
-### Next Function Number
-
-对于非 VF Function：
-
-```text
-Next Function Number
-```
-
-形成一个 Function 链，用来帮助软件发现 Function > 7 的 Extended Functions。
-
-例如：
-
-```text
-Function 0
-   |
-   +-- Next Function Number = 4
-                              |
-                              v
-                         Function 4
-                              |
-                              +-- Next = 10
-                                       |
-                                       v
-                                  Function 10
-```
-
-但 VF 不依赖这个字段发现。
-
-VF 的位置由：
-
-```text
-First VF Offset
-VF Stride
-```
-
-决定。
-
-### ARI Capability 中的其他功能
-
-ARI Capability 还包含与 Function Group 有关的功能，例如：
-
-- MFVC Function Groups Capability
-- ACS Function Groups Capability
-- Function Group
-
-这些主要用于多 Function 设备中的 VC / ACS Function Group 管理。
-
-因此：
-
-> EP 侧的 ARI Extended Capability 描述的是“这个 Device 如何作为 ARI Device 工作”。
+> **规范上的关键点：** 对于不在 Root Complex 内的 SR-IOV Device，每个 Function 都必须实现 ARI Extended Capability。但“实现 ARI Capability”不等于“当前 hierarchy 已经开启 ARI Forwarding”。
 
 ---
 
-## 8. DSP / Root Port：ARI Forwarding
+## 15. 三个 ARI 机制的关系
 
-真正决定能不能访问 Function 8~255 的关键，是 **EP 正上方的 Downstream Port**。
-
-这个 Downstream Port 可以是：
-
-- Root Port
-- Switch Downstream Port（DSP）
-
-PCIe 对 ARI Downstream Port 的定义就是：
-
-> 支持 ARI Forwarding 的 Root Port 或 Switch Downstream Port。
-
-DSP / Root Port 的关键控制是：
+可以把整个链路理解成：
 
 ```text
-ARI Forwarding Supported
-ARI Forwarding Enable
-```
-
-当 ARI Forwarding Enable 打开后，它允许下面的 ARI Device 使用 Extended Functions。
-
----
-
-## 9. 为什么 DSP 必须支持 ARI Forwarding
-
-假设收到：
-
-```text
-RID = 0x0341
-```
-
-ARI 解释：
-
-```text
-Bus      = 03
-Function = 0x41 = 65
-```
-
-但传统解释会变成：
-
-```text
-Bus      = 03
-Device   = 08
-Function = 1
-```
-
-所以如果 DSP 不支持 / 没打开 ARI Forwarding，它会按传统 Device/Function 规则处理。
-
-对于一个直接位于 Downstream Port 后面的 Endpoint：
-
-```text
-Device Number 必须 = 0
-```
-
-因此这种 `Device=8` 的解释就是非法的。
-
-ARI Forwarding 的核心作用就是：
-
-> 让 Downstream Port 不再把 RID[7:3] 强制解释成传统 Device Number，而允许它属于 8-bit ARI Function Number。
-
----
-
-# 10. ARI Forwarding 并不是 Bus Number 路由功能
-
-这一点很重要。
-
-Switch / Root Port 对 Bus Number 的路由仍然依靠：
-
-```text
-Secondary Bus Number
-Subordinate Bus Number
-```
-
-例如：
-
-```text
-DSP:
-Secondary   = 03
-Subordinate = 07
-```
-
-意味着：
-
-```text
-Bus 03 ~ 07
-```
-
-都应该从该 Downstream Port 路由下去。
-
-所以 ARI 并不是解决“Bus Number 往哪里走”。
-
-ARI 真正解决的是：
-
-```text
-RID[7:0]
-```
-
-在目标 Bus 内应该解释成：
-
-```text
-Device[4:0] + Function[2:0]
-```
-
-还是：
-
-```text
-Function[7:0]
-```
-
----
-
-# 11. DSP 的 Secondary / Subordinate Bus Number
-
-如果 SR-IOV Device 的 VF 跨多个 Bus，软件需要给 DSP 留出足够的 Bus Number 范围。
-
-例如：
-
-```text
-EP PF 所在 Bus       = 03
-最后一个 VF 所在 Bus = 07
-```
-
-则可以配置为：
-
-```text
-Secondary Bus Number   = 03
-Subordinate Bus Number = 07
-```
-
-其中：
-
-- **Secondary Bus Number**：该 DSP 下游的第一个 Bus
-- **Subordinate Bus Number**：该 DSP 下游允许路由到的最大 Bus Number
-
-VF 增多时，通常需要扩大的是：
-
-```text
-Subordinate Bus Number
-```
-
-而不是不断修改 Secondary Bus Number。
-
----
-
-# 12. USP 是否需要 ARI Capability？
-
-这是最容易混淆的一点。
-
-对于一个普通 Switch：
-
-```text
-        Switch USP
-             |
-         Switch Fabric
-        /     |      \
-      DSP    DSP     DSP
-       |      |
-      EP     EP
-```
-
-**ARI Forwarding 是 Downstream Port 的能力。**
-
-因为 Extended Function 所在的 ARI Device 是挂在某个 DSP 下面的，真正需要解除传统 Device Number 限制的是这个 DSP。
-
-因此：
-
-| 组件 | ARI 相关职责 |
-|---|---|
-| EP / PF | 作为 ARI Device，实现 ARI Extended Capability |
-| VF | 通过 SR-IOV First VF Offset / VF Stride 定位，不依赖 Next Function Number |
-| Root Port | 如果下面直接挂 ARI Device，需要支持并 Enable ARI Forwarding |
-| Switch DSP | 如果下面直接挂 ARI Device，需要支持并 Enable ARI Forwarding |
-| Switch USP | 不承担“下面某个 EP Extended Function”的直接 ARI Forwarding 角色；上游主要看到正常的 Requester/Completer ID |
-| Switch Fabric | 正常根据 Bus Number / 路由规则转发 |
-
-因此判断 ARI Forwarding 时最重要的一句话是：
-
-> 看 **ARI Device immediately above/below 的相邻 Downstream Port**。
-
-PCIe 对 Extended Function 的定义也明确指出：
-
-> Function Number > 7 的 Extended Function，只有在 ARI Device 正上方的 Downstream Port 开启 ARI Forwarding 后才能访问。
-
----
-
-# 13. Root Port 与 Switch DSP 本质相同
-
-从 ARI 角度看：
-
-```text
-Root Port
-   |
-  EP
-```
-
-和：
-
-```text
-Switch DSP
-   |
-  EP
-```
-
-作用类似。
-
-只要这个 Port 是：
-
-```text
-immediately above the ARI Device
-```
-
-它就必须支持：
-
-```text
-ARI Forwarding Supported
-```
-
-并由软件设置：
-
-```text
-ARI Forwarding Enable = 1
-```
-
-之后 EP 才能合法使用 Function 8~255。
-
----
-
-# 14. SR-IOV Capability 中的 ARI Capable Hierarchy
-
-SR-IOV PF 中还有：
-
-```text
-ARI Capable Hierarchy
-```
-
-这个 bit 的意义不是“EP 自己有没有 ARI Capability”。
-
-它表示：
-
-> 软件已经确认当前 PCIe hierarchy 可以支持这个 SR-IOV Device 按 ARI 方式分配 VF Routing ID。
-
-因此 Device 可以根据这个 bit 决定：
-
-```text
-First VF Offset
-VF Stride
-```
-
-应该采用适合 ARI hierarchy 还是 non-ARI hierarchy 的布局。
-
-一些 PCIe Controller IP 会分别准备：
-
-```text
-ARI hierarchy:
-  First VF Offset
-  VF Stride
-
-Non-ARI hierarchy:
-  First VF Offset
-  VF Stride
-```
-
-两套值。
-
----
-
-# 15. 两种模式最终对比
-
-| 项目 | Non-ARI SR-IOV | ARI SR-IOV |
-|---|---|---|
-| RID 低 8 bit | Device[4:0] + Function[2:0] | Function[7:0] |
-| 同 Bus 最大 Function 空间 | 8 | 256 |
-| Device Number | 必须为 0 | 不再单独解释 Device Number |
-| VF 多时 | 较早跨 Bus | 最多 256 个 RID 可留在一个 Bus |
-| DSP ARI Forwarding | 不需要 | Function > 7 时必须支持并 Enable |
-| Bus Number 路由 | Secondary/Subordinate Bus | Secondary/Subordinate Bus |
-| VF RID 生成 | First VF Offset + VF Stride | First VF Offset + VF Stride |
-
----
-
-# 16. 最终可以这样记
-
-### Non-ARI
-
-```text
-SR-IOV EP
-Device Number 必须 = 0
-
-每 Bus：
-Function 0~7
-
-超过 8 个 PF/VF
+SR-IOV Endpoint / ARI Device
+        |
+        | ARI Extended Capability
+        | - Function 描述
+        | - Next Function Number
+        | - Function Group
+        |
+======== PCIe Link =================
+        |
+Root Port / Switch DSP
+        |
+        | Device Capabilities 2
+        |   ARI Forwarding Supported
+        |
+        | Device Control 2
+        |   ARI Forwarding Enable
+        |
+======== software state ============
+        |
+Lowest-numbered PF
+        |
+        | SR-IOV Control
+        |   ARI Capable Hierarchy
         |
         v
-占用新的 Bus Number
-        |
-        v
-DSP Subordinate Bus Number 必须覆盖所有 VF Bus
+First VF Offset / VF Stride
+可以选择更适合 ARI hierarchy 的 RID 布局
 ```
 
-### ARI
+一句话：
 
-```text
-SR-IOV + ARI
-
-Bus[7:0] + Function[7:0]
-
-同 Bus：
-Function 0~255
-        |
-        v
-EP 正上方 Root Port / DSP
-必须支持 ARI Forwarding
-        |
-        v
-Function > 255 或 RID 因 Offset/Stride 跨 xxFF
-        |
-        v
-进入新的 Bus Number
-        |
-        v
-DSP Subordinate Bus Number 继续覆盖
-```
+> **ARI Capability 描述 Device；ARI Forwarding 控制上一级 Port 是否真的按 ARI Function Number 转发；ARI Capable Hierarchy 告诉 SR-IOV Device 当前 hierarchy 已经具备这个条件。**
 
 ---
 
-## 17. 一个容易遗漏的结论
+## 16. Bus Number 为什么会变成稀缺资源
 
-**ARI 与 SR-IOV 是两个不同机制。**
+一个 PCIe Segment 的 Bus Number 是 8 bit：
 
-SR-IOV 并不强制 ARI。
+```text
+00h ~ FFh
+```
 
-但是：
+总共只有 256 个值。
 
-- 没有 ARI，大规模 VF 会很快消耗 Bus Number
-- 有 ARI，可以把 Routing ID 的低 8 bit 全部作为 Function Number
-- VF 是否真正跨 Bus，最终仍取决于 `First VF Offset` 和 `VF Stride`
+这些 Bus Number 还要分给：
 
-因此最准确的理解是：
+- Root Port 下的 Endpoint
+- Switch
+- Switch 下游的其他 Endpoint
+- 其他 Bridge hierarchy
+- SR-IOV Device 的额外 VF Bus
 
-> **ARI 决定一个 Bus 内 Routing ID 低 8 bit 如何解释；SR-IOV 的 First VF Offset / VF Stride 决定每个 VF 最终拿到哪个 16-bit Routing ID。**
+所以像下面这种配置：
+
+```text
+First VF Offset = 0x0100
+VF Stride       = 0x0100
+```
+
+虽然合法，但非常浪费 Bus Number：
+
+```text
+PF   -> Bus 03
+VF0  -> Bus 04
+VF1  -> Bus 05
+VF2  -> Bus 06
+...
+```
+
+大量 VF 会压缩整个 hierarchy 留给其他设备的 Bus Number 空间。
+
+PCIe 规范也明确强调 Bus Number 是 constrained resource，并建议 SR-IOV Device 尽量避免不必要的 Bus Number 洞。
+
+---
+
+## 17. ARI 对 SR-IOV 的现实价值
+
+ARI 对 SR-IOV 的意义，不是“没有 ARI 就不能有 VF”。
+
+更准确地说：
+
+> **ARI Forwarding + ARI Capable Hierarchy 允许 SR-IOV Device 更充分利用一个 Bus 内的 8-bit Function Number 空间，从而减少 VF 对额外 Bus Number 的消耗。**
+
+例如同样有大量 Function：
+
+### ARI Forwarding 未开启，SR-IOV 按传统 hierarchy 布局
+
+```text
+captured Bus:
+传统 Function 空间有限
+
+更多 VF
+   -> First VF Offset / VF Stride
+   -> additional Bus Number
+   -> Type 1 CFG 直接访问跨 Bus VF
+```
+
+### ARI Forwarding 已开启，ARI Capable Hierarchy = 1
+
+```text
+captured Bus:
+Function 0 ~ 255
+
+大量 PF / VF
+   -> 可以继续留在一个 Bus
+   -> 显著减少额外 Bus Number 消耗
+```
+
+注意：最终是否跨 Bus，仍然取决于实际的 `First VF Offset` / `VF Stride`。
+
+ARI 并不会强制所有 VF 都留在一个 Bus。
+
+---
+
+## 18. 最终总结
+
+把整个问题浓缩成几句话：
+
+1. **PF 必须在 SR-IOV Device 的 captured Bus Number。**
+2. **VF RID 由 PF RID + First VF Offset + VF Stride 算出来。**
+3. **不同 PF 的 First VF Offset / VF Stride 不要求相同。**
+4. **VF 可以位于 captured Bus，也可以位于额外 Bus。**
+5. **captured Bus 上的 PF/VF 走 Type 0 Configuration Request。**
+6. **额外 Bus 上的 VF 可以直接由 SR-IOV Device 接收 Type 1 Configuration Request。**
+7. **ARI Extended Capability 不等于 ARI Forwarding。**
+8. **ARI Capability 的 Next Function Number 主要用于 non-VF Function 的快速枚举，VF 用 First VF Offset / VF Stride 发现。**
+9. **ARI Forwarding Enable=1 后，低 8 bit 可以按 ARI Function[7:0] 使用。**
+10. **ARI Capable Hierarchy 是 SR-IOV Device 对 hierarchy ARI 状态的 hint，并影响 VF RID 布局。**
+11. **First VF Offset = 0x0100、VF Stride = 0x0100 会让每个 VF 跳到下一个 Bus。**
+12. **这种布局会快速消耗 Bus Number，因此 ARI 的一个重要现实价值就是节省 Bus Number 资源。**
+
+最终最值得记住的一句话是：
+
+> **SR-IOV 决定 VF 的 16-bit Routing ID 怎么生成；ARI Forwarding 决定上游 Port 能否把 Routing ID 的低 8 bit 当作扩展 Function Number 使用。二者结合后，系统可以在 VF 数量和 Bus Number 消耗之间取得更高效的布局。**
 
 ---
 
 ## 参考
 
 - PCI Express Base Specification Revision 6.4
-  - ARI / ARI Device / ARI Downstream Port / ARI Forwarding 定义
-  - Section 7.8.8, ARI Extended Capability
-  - Section 9.2.1.2, VF Discovery
-  - Section 9.4.3, SR-IOV Capability registers
-- Synopsys DesignWare PCI Express Controller Databook
-  - SR-IOV and ARI Capable Hierarchy
-  - Programmable Virtual Function Allocation
-  - Routing ID Generation Examples
+  - §6.13 Alternative Routing-ID Interpretation (ARI)
+  - §7.3 Configuration Transaction Rules
+  - §7.8.8 ARI Extended Capability
+  - §9.2.1 SR-IOV Configuration / VF Discovery
+  - §9.4.3 SR-IOV Extended Capability
